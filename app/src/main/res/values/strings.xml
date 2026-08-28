@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">ZLink Remote</string>
+    <string name="app_tagline">把 ZCode Remote 安稳地放进一个 App</string>
+    <string name="unofficial_notice">非官方客户端 · 只连接你自己的 ZCode 桌面端</string>
+
+    <string name="connect_title">连接到 ZCode</string>
+    <string name="connect_help">在电脑端 ZCode 打开“手机远控”，然后扫描二维码或粘贴链接。</string>
+    <string name="remote_url_label">Remote 链接</string>
+    <string name="remote_url_hint">https://zcode.z.ai/remote/v4?…</string>
+    <string name="paste">粘贴</string>
+    <string name="scan_qr">扫描二维码</string>
+    <string name="connect">连接</string>
+    <string name="valid_link">已识别安全的 ZCode Remote 链接</string>
+    <string name="invalid_link">这不是有效的 ZCode Remote 链接</string>
+    <string name="clipboard_empty">剪贴板里没有文字</string>
+    <string name="scan_recognized">二维码已识别，请确认后再连接</string>
+    <string name="camera_unavailable">这台设备没有可用相机，请改用粘贴链接</string>
+
+    <string name="recent_title">最近连接</string>
+    <string name="recent_empty">连接过的设备会出现在这里</string>
+    <string name="recent_warning">Remote 链接是临时钥匙。电脑端刷新二维码、重启或点 Stop 后，旧记录会失效。</string>
+    <string name="remove_session">移除连接</string>
+    <string name="remove_session_message">只会删除这条本机记录，不会停止电脑端任务。</string>
+    <string name="remove">移除</string>
+    <string name="cancel">取消</string>
+
+    <string name="menu_clear_data">清除本机数据</string>
+    <string name="menu_about">关于</string>
+    <string name="clear_data_title">清除本机数据？</string>
+    <string name="clear_data_message">最近连接、加密凭据、Cookie、网页存储和缓存都会被删除。电脑端数据不会受到影响。</string>
+    <string name="clear">清除</string>
+    <string name="data_cleared">本机数据已清除</string>
+    <string name="data_clear_partial">部分本机数据未能清除，请重试</string>
+    <string name="about_message">ZLink Remote 是一个独立的非官方 Android 客户端，只承载 ZCode 官方 Remote 网页，不复刻私有协议，也不会把链接上传到其他服务器。\n\nZCode 名称归其权利人所有。</string>
+
+    <string name="loading_workspace">正在加载工作区…</string>
+    <string name="navigate_back">返回</string>
+    <string name="reload">重新加载</string>
+    <string name="back_home">返回首页</string>
+    <string name="leave_title">返回连接页？</string>
+    <string name="leave_message">手机页面会关闭，但电脑端 Remote 和正在运行的任务不会停止。要撤销链接，请在电脑端点 Stop 或刷新二维码。</string>
+    <string name="leave">返回</string>
+    <string name="web_error_title">无法打开工作区</string>
+    <string name="web_error_generic">请检查网络和电脑端 Remote 是否仍然开启。</string>
+    <string name="web_error_expired">这个 Remote 链接可能已经失效，请回到电脑端重新生成。</string>
+    <string name="web_error_ssl">无法验证服务器身份，连接已被阻止。</string>
+    <string name="web_error_unsafe">网页尝试离开 ZCode 官方站点，已停止加载。</string>
+    <string name="web_error_renderer">系统 WebView 意外停止，可以尝试重新加载。</string>
+    <string name="webview_unavailable">系统 WebView 不可用。请在系统应用商店更新或启用 Android System WebView / 小米系统 WebView。</string>
+    <string name="external_link_blocked">已阻止不安全的外部链接</string>
+    <string name="file_picker_unavailable">无法打开系统文件选择器</string>
+    <string name="unsafe_file_rejected">已拒绝文件选择器返回的不安全内容</string>
+    <string name="secure_store_unavailable">安全存储不可用；这次连接不会保存，退出应用后需重新扫码。</string>
+    <string name="session_unavailable">这次临时连接已失效，请重新扫码或粘贴链接</string>
+
+    <string name="scanner_title">扫描 ZCode Remote 二维码</string>
+    <string name="scanner_hint">把电脑屏幕上的二维码放进框内</string>
+    <string name="scanner_close">关闭</string>
+    <string name="scanner_torch_on">打开手电筒</string>
+    <string name="scanner_torch_off">关闭手电筒</string>
+    <string name="camera_permission_title">无法使用相机</string>
+    <string name="camera_permission_message">没有相机权限也没关系，可以返回后粘贴 Remote 链接。</string>
+    <string name="camera_error">相机启动失败，请返回后改用粘贴链接</string>
+
+    <string name="delete_connection_content_description">删除连接：%1$s</string>
+    <string name="connection_card_content_description">连接到 %1$s</string>
+</resources>
