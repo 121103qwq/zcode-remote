@@ -10,6 +10,7 @@ import android.os.Bundle
 import android.text.format.DateUtils
 import android.view.Menu
 import android.view.View
+import android.view.WindowManager
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
@@ -37,6 +38,7 @@ import io.github.xgy.zcoderemote.security.RemoteUrlPolicy
 class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private lateinit var sessionStore: SessionStore
+    private var clearInProgress = false
 
     private val scannerLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult(),
@@ -56,9 +58,12 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
         enableEdgeToEdge()
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        binding.urlInput.isSaveEnabled = false
+        binding.urlInputLayout.isSaveEnabled = false
         applyInsets()
 
         sessionStore = SessionStore(this)
@@ -81,7 +86,9 @@ class MainActivity : AppCompatActivity() {
 
     private fun applyInsets() {
         ViewCompat.setOnApplyWindowInsetsListener(binding.root) { view, insets ->
-            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            val bars = insets.getInsets(
+                WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout(),
+            )
             view.setPadding(bars.left, bars.top, bars.right, bars.bottom)
             insets
         }
@@ -262,7 +269,10 @@ class MainActivity : AppCompatActivity() {
 
         val removeButton = MaterialButton(this).apply {
             text = getString(R.string.remove)
-            contentDescription = getString(R.string.delete_connection_content_description)
+            contentDescription = getString(
+                R.string.delete_connection_content_description,
+                session.name,
+            )
             setOnClickListener { confirmRemove(session) }
         }
         row.addView(labels)
@@ -297,21 +307,42 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun clearLocalData() {
-        runCatching(sessionStore::clear)
+        if (clearInProgress) return
+        clearInProgress = true
+        val secureDataCleared = runCatching(sessionStore::clear).isSuccess
         TransientSessionVault.clear()
-        runCatching {
-            CookieManager.getInstance().removeAllCookies(null)
-            CookieManager.getInstance().flush()
+        val webDataCleared = runCatching {
             WebStorage.getInstance().deleteAllData()
             WebView(this).apply {
                 clearCache(true)
                 clearHistory()
                 destroy()
             }
-        }
+        }.isSuccess
         binding.urlInput.text?.clear()
         renderRecentSessions()
-        Toast.makeText(this, R.string.data_cleared, Toast.LENGTH_SHORT).show()
+
+        var completionDelivered = false
+        fun complete() {
+            if (completionDelivered) return
+            completionDelivered = true
+            clearInProgress = false
+            if (!isFinishing && !isDestroyed) {
+                Toast.makeText(
+                    this,
+                    if (secureDataCleared && webDataCleared) {
+                        R.string.data_cleared
+                    } else {
+                        R.string.data_clear_partial
+                    },
+                    Toast.LENGTH_SHORT,
+                ).show()
+            }
+        }
+
+        runCatching {
+            CookieManager.getInstance().removeAllCookies { complete() }
+        }.onFailure { complete() }
     }
 
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()

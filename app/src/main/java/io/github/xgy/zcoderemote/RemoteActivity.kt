@@ -9,6 +9,7 @@ import android.net.Uri
 import android.os.Bundle
 import android.view.Menu
 import android.view.View
+import android.view.WindowManager
 import android.webkit.ConsoleMessage
 import android.webkit.CookieManager
 import android.webkit.GeolocationPermissions
@@ -30,6 +31,7 @@ import io.github.xgy.zcoderemote.data.RemoteSession
 import io.github.xgy.zcoderemote.data.SessionStore
 import io.github.xgy.zcoderemote.data.TransientSessionVault
 import io.github.xgy.zcoderemote.databinding.ActivityRemoteBinding
+import io.github.xgy.zcoderemote.security.RemoteUrlPolicy
 import io.github.xgy.zcoderemote.web.TrustedRemoteWebViewClient
 import kotlin.math.max
 
@@ -40,29 +42,42 @@ class RemoteActivity : AppCompatActivity(), TrustedRemoteWebViewClient.Callbacks
     private var networkCallbackRegistered = false
     private var webView: WebView? = null
     private var fileChooserCallback: ValueCallback<Array<Uri>>? = null
+    private var acceptedFileTypes: List<String> = listOf(ANY_MIME_TYPE)
 
     private val filePickerLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult(),
     ) { result ->
         val callback = fileChooserCallback ?: return@registerForActivityResult
         fileChooserCallback = null
-        callback.onReceiveValue(
-            WebChromeClient.FileChooserParams.parseResult(result.resultCode, result.data),
-        )
+        val values = if (isTrustedCurrentPage()) {
+            extractSafeFileUris(result.resultCode, result.data, acceptedFileTypes)
+        } else {
+            null
+        }
+        acceptedFileTypes = listOf(ANY_MIME_TYPE)
+        runCatching { callback.onReceiveValue(values) }
     }
 
     private val networkCallback = object : ConnectivityManager.NetworkCallback() {
         override fun onAvailable(network: Network) {
-            runOnUiThread { binding.networkBanner.visibility = View.GONE }
+            refreshNetworkBannerOnMainThread()
         }
 
         override fun onLost(network: Network) {
-            runOnUiThread { binding.networkBanner.visibility = View.VISIBLE }
+            refreshNetworkBannerOnMainThread()
+        }
+
+        override fun onCapabilitiesChanged(
+            network: Network,
+            networkCapabilities: NetworkCapabilities,
+        ) {
+            refreshNetworkBannerOnMainThread()
         }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
         enableEdgeToEdge()
 
         if (WebView.getCurrentWebViewPackage() == null) {
@@ -76,6 +91,11 @@ class RemoteActivity : AppCompatActivity(), TrustedRemoteWebViewClient.Callbacks
             runCatching { SessionStore(this).find(id) }.getOrNull()
                 ?: TransientSessionVault.find(id)
         } ?: run {
+            Toast.makeText(this, R.string.session_unavailable, Toast.LENGTH_LONG).show()
+            startActivity(
+                Intent(this, MainActivity::class.java)
+                    .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP),
+            )
             finish()
             return
         }
@@ -88,7 +108,7 @@ class RemoteActivity : AppCompatActivity(), TrustedRemoteWebViewClient.Callbacks
         configureErrorActions()
 
         connectivityManager = getSystemService(ConnectivityManager::class.java)
-        updateNetworkBanner()
+        refreshNetworkBanner()
         registerNetworkCallback()
 
         webView = binding.webView
@@ -104,24 +124,24 @@ class RemoteActivity : AppCompatActivity(), TrustedRemoteWebViewClient.Callbacks
     }
 
     override fun onPause() {
+        webView?.clearCache(true)
         webView?.onPause()
         super.onPause()
-    }
-
-    override fun onStop() {
-        CookieManager.getInstance().flush()
-        super.onStop()
     }
 
     override fun onDestroy() {
         if (networkCallbackRegistered) {
             runCatching { connectivityManager.unregisterNetworkCallback(networkCallback) }
         }
-        fileChooserCallback?.onReceiveValue(null)
-        fileChooserCallback = null
+        cancelPendingFileChooser()
         destroyWebView(webView)
         webView = null
-        if (::session.isInitialized && session.id.startsWith("volatile-")) {
+        if (
+            ::session.isInitialized &&
+            session.id.startsWith("volatile-") &&
+            isFinishing &&
+            !isChangingConfigurations
+        ) {
             TransientSessionVault.remove(session.id)
         }
         super.onDestroy()
@@ -129,7 +149,9 @@ class RemoteActivity : AppCompatActivity(), TrustedRemoteWebViewClient.Callbacks
 
     private fun applyInsets() {
         ViewCompat.setOnApplyWindowInsetsListener(binding.root) { view, insets ->
-            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            val bars = insets.getInsets(
+                WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout(),
+            )
             val ime = insets.getInsets(WindowInsetsCompat.Type.ime())
             view.setPadding(bars.left, bars.top, bars.right, max(bars.bottom, ime.bottom))
             insets
@@ -188,13 +210,15 @@ class RemoteActivity : AppCompatActivity(), TrustedRemoteWebViewClient.Callbacks
             setSupportMultipleWindows(false)
             mediaPlaybackRequiresUserGesture = true
             safeBrowsingEnabled = true
-            cacheMode = WebSettings.LOAD_DEFAULT
+            cacheMode = WebSettings.LOAD_NO_CACHE
         }
         CookieManager.getInstance().apply {
             setAcceptCookie(true)
             setAcceptThirdPartyCookies(target, false)
         }
         target.overScrollMode = View.OVER_SCROLL_NEVER
+        target.isSaveEnabled = false
+        target.clearCache(true)
         target.webViewClient = TrustedRemoteWebViewClient(this)
         target.webChromeClient = object : WebChromeClient() {
             override fun onProgressChanged(view: WebView, newProgress: Int) {
@@ -203,6 +227,7 @@ class RemoteActivity : AppCompatActivity(), TrustedRemoteWebViewClient.Callbacks
             }
 
             override fun onReceivedTitle(view: WebView, title: String?) {
+                if (!isTrustedCurrentPage()) return
                 val safeTitle = title
                     ?.filterNot { it.isISOControl() }
                     ?.trim()
@@ -216,14 +241,20 @@ class RemoteActivity : AppCompatActivity(), TrustedRemoteWebViewClient.Callbacks
                 filePathCallback: ValueCallback<Array<Uri>>,
                 fileChooserParams: FileChooserParams,
             ): Boolean {
-                this@RemoteActivity.fileChooserCallback?.onReceiveValue(null)
+                if (!isTrustedCurrentPage()) {
+                    filePathCallback.onReceiveValue(null)
+                    onMainFrameError(TrustedRemoteWebViewClient.ErrorKind.UNSAFE)
+                    return true
+                }
+
+                cancelPendingFileChooser()
                 this@RemoteActivity.fileChooserCallback = filePathCallback
+                acceptedFileTypes = normalizeAcceptedMimeTypes(fileChooserParams.acceptTypes)
                 return runCatching {
-                    filePickerLauncher.launch(fileChooserParams.createIntent())
+                    filePickerLauncher.launch(createSafeFilePicker(fileChooserParams))
                     true
                 }.getOrElse {
-                    this@RemoteActivity.fileChooserCallback = null
-                    filePathCallback.onReceiveValue(null)
+                    cancelPendingFileChooser()
                     Snackbar.make(binding.root, R.string.file_picker_unavailable, Snackbar.LENGTH_LONG)
                         .show()
                     false
@@ -254,6 +285,7 @@ class RemoteActivity : AppCompatActivity(), TrustedRemoteWebViewClient.Callbacks
 
     private fun loadSession() {
         val target = webView ?: createReplacementWebView()
+        target.clearCache(true)
         binding.errorPanel.visibility = View.GONE
         target.visibility = View.VISIBLE
         binding.progress.visibility = View.VISIBLE
@@ -278,6 +310,9 @@ class RemoteActivity : AppCompatActivity(), TrustedRemoteWebViewClient.Callbacks
         if (target == null) return
         (target.parent as? android.view.ViewGroup)?.removeView(target)
         target.stopLoading()
+        target.clearCache(true)
+        target.clearHistory()
+        target.clearFormData()
         target.webChromeClient = null
         target.webViewClient = android.webkit.WebViewClient()
         target.removeAllViews()
@@ -302,11 +337,22 @@ class RemoteActivity : AppCompatActivity(), TrustedRemoteWebViewClient.Callbacks
             .show()
     }
 
-    private fun updateNetworkBanner() {
+    private fun refreshNetworkBanner() {
         val network = connectivityManager.activeNetwork
         val capabilities = network?.let(connectivityManager::getNetworkCapabilities)
-        val online = capabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
+        val online = capabilities?.run {
+            hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
+                hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+        } == true
         binding.networkBanner.visibility = if (online) View.GONE else View.VISIBLE
+    }
+
+    private fun refreshNetworkBannerOnMainThread() {
+        runOnUiThread {
+            if (!isFinishing && !isDestroyed && ::binding.isInitialized) {
+                refreshNetworkBanner()
+            }
+        }
     }
 
     private fun registerNetworkCallback() {
@@ -323,6 +369,7 @@ class RemoteActivity : AppCompatActivity(), TrustedRemoteWebViewClient.Callbacks
     }
 
     override fun onPageFinished() {
+        webView?.clearCache(true)
         binding.progress.visibility = View.GONE
     }
 
@@ -330,8 +377,9 @@ class RemoteActivity : AppCompatActivity(), TrustedRemoteWebViewClient.Callbacks
         val message = when (kind) {
             TrustedRemoteWebViewClient.ErrorKind.EXPIRED -> R.string.web_error_expired
             TrustedRemoteWebViewClient.ErrorKind.SSL,
-            TrustedRemoteWebViewClient.ErrorKind.UNSAFE,
             -> R.string.web_error_ssl
+
+            TrustedRemoteWebViewClient.ErrorKind.UNSAFE -> R.string.web_error_unsafe
 
             TrustedRemoteWebViewClient.ErrorKind.RENDERER -> R.string.web_error_renderer
             TrustedRemoteWebViewClient.ErrorKind.NETWORK -> R.string.web_error_generic
@@ -340,6 +388,7 @@ class RemoteActivity : AppCompatActivity(), TrustedRemoteWebViewClient.Callbacks
     }
 
     override fun onRendererGone(webView: WebView) {
+        cancelPendingFileChooser()
         destroyWebView(webView)
         this.webView = null
         showError(R.string.web_error_renderer)
@@ -367,10 +416,94 @@ class RemoteActivity : AppCompatActivity(), TrustedRemoteWebViewClient.Callbacks
         binding.errorPanel.visibility = View.VISIBLE
     }
 
+    private fun isTrustedCurrentPage(): Boolean =
+        RemoteUrlPolicy.isTrustedTopLevelNavigation(webView?.url.orEmpty())
+
+    private fun createSafeFilePicker(params: WebChromeClient.FileChooserParams): Intent {
+        val mimeTypes = acceptedFileTypes
+        val primaryType = mimeTypes.singleOrNull() ?: ANY_MIME_TYPE
+        return Intent(Intent.ACTION_OPEN_DOCUMENT)
+            .addCategory(Intent.CATEGORY_OPENABLE)
+            .setType(primaryType)
+            .putExtra(
+                Intent.EXTRA_ALLOW_MULTIPLE,
+                params.mode == WebChromeClient.FileChooserParams.MODE_OPEN_MULTIPLE,
+            )
+            .apply {
+                if (mimeTypes.size > 1) {
+                    putExtra(Intent.EXTRA_MIME_TYPES, mimeTypes.toTypedArray())
+                }
+            }
+    }
+
+    private fun normalizeAcceptedMimeTypes(rawTypes: Array<out String>?): List<String> {
+        val normalized = rawTypes
+            .orEmpty()
+            .flatMap { it.split(',') }
+            .map { it.trim().lowercase() }
+            .filter { type ->
+                val slash = type.indexOf('/')
+                slash > 0 && slash < type.lastIndex && type.none(Char::isWhitespace)
+            }
+            .distinct()
+            .take(MAX_ACCEPTED_MIME_TYPES)
+        return normalized.ifEmpty { listOf(ANY_MIME_TYPE) }
+    }
+
+    private fun extractSafeFileUris(
+        resultCode: Int,
+        resultData: Intent?,
+        allowedTypes: List<String>,
+    ): Array<Uri>? {
+        if (resultCode != RESULT_OK || resultData == null) return null
+        val candidates = buildList {
+            val clipData = resultData.clipData
+            if (clipData != null) {
+                for (index in 0 until clipData.itemCount.coerceAtMost(MAX_SELECTED_FILES + 1)) {
+                    clipData.getItemAt(index).uri?.let(::add)
+                }
+            } else {
+                resultData.data?.let(::add)
+            }
+        }
+        val safe = candidates.takeIf { it.isNotEmpty() && it.size <= MAX_SELECTED_FILES }
+            ?.takeIf { values -> values.all { isSafeFileUri(it, allowedTypes) } }
+            ?.toTypedArray()
+        if (candidates.isNotEmpty() && safe == null) {
+            Snackbar.make(binding.root, R.string.unsafe_file_rejected, Snackbar.LENGTH_LONG).show()
+        }
+        return safe
+    }
+
+    private fun isSafeFileUri(uri: Uri, allowedTypes: List<String>): Boolean {
+        if (uri.scheme != "content") return false
+        return runCatching {
+            val actualType = contentResolver.getType(uri)?.lowercase() ?: return@runCatching false
+            val typeAllowed = allowedTypes.any { allowed ->
+                allowed == ANY_MIME_TYPE ||
+                    allowed == actualType ||
+                    (allowed.endsWith("/*") &&
+                        actualType.startsWith(allowed.substringBefore('/') + "/"))
+            }
+            if (!typeAllowed) return@runCatching false
+            contentResolver.openAssetFileDescriptor(uri, "r")?.use { true } ?: false
+        }.getOrDefault(false)
+    }
+
+    private fun cancelPendingFileChooser() {
+        val callback = fileChooserCallback
+        fileChooserCallback = null
+        acceptedFileTypes = listOf(ANY_MIME_TYPE)
+        if (callback != null) runCatching { callback.onReceiveValue(null) }
+    }
+
     companion object {
         private const val EXTRA_SESSION_ID = "io.github.xgy.zcoderemote.SESSION_ID"
         private const val MENU_RELOAD = 1
         private const val MENU_HOME = 2
+        private const val ANY_MIME_TYPE = "*/*"
+        private const val MAX_ACCEPTED_MIME_TYPES = 16
+        private const val MAX_SELECTED_FILES = 10
 
         fun createIntent(context: Context, sessionId: String): Intent =
             Intent(context, RemoteActivity::class.java).putExtra(EXTRA_SESSION_ID, sessionId)

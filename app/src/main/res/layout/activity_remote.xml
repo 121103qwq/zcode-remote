@@ -10,9 +10,11 @@
     <com.google.android.material.appbar.MaterialToolbar
         android:id="@+id/toolbar"
         android:layout_width="match_parent"
-        android:layout_height="?attr/actionBarSize"
+        android:layout_height="wrap_content"
         android:background="@color/zr_surface"
+        android:minHeight="?attr/actionBarSize"
         app:navigationIcon="@drawable/ic_arrow_back"
+        app:navigationContentDescription="@string/navigate_back"
         app:titleTextColor="@color/zr_text"
         app:subtitleTextColor="@color/zr_text_secondary" />
 
@@ -30,11 +32,12 @@
         android:id="@+id/networkBanner"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:accessibilityLiveRegion="polite"
         android:background="@color/zr_warning"
         android:gravity="center"
         android:padding="8dp"
         android:text="@string/network_offline"
-        android:textColor="#FFFFFF"
+        android:textColor="@color/zr_on_warning"
         android:textSize="13sp"
         android:visibility="gone" />
 
@@ -50,60 +53,69 @@
             android:layout_height="match_parent"
             android:background="@color/zr_background" />
 
-        <LinearLayout
+        <ScrollView
             android:id="@+id/errorPanel"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:background="@color/zr_background"
-            android:gravity="center"
-            android:orientation="vertical"
-            android:padding="28dp"
+            android:fillViewport="true"
             android:visibility="gone">
 
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="!"
-                android:textColor="@color/zr_error"
-                android:textSize="42sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:id="@+id/errorTitle"
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
                 android:gravity="center"
-                android:text="@string/web_error_title"
-                android:textColor="@color/zr_text"
-                android:textSize="21sp"
-                android:textStyle="bold" />
+                android:minHeight="360dp"
+                android:orientation="vertical"
+                android:padding="28dp">
 
-            <TextView
-                android:id="@+id/errorMessage"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="10dp"
-                android:gravity="center"
-                android:lineSpacingExtra="2dp"
-                android:text="@string/web_error_generic"
-                android:textColor="@color/zr_text_secondary"
-                android:textSize="15sp" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="!"
+                    android:textColor="@color/zr_error"
+                    android:textSize="42sp"
+                    android:textStyle="bold" />
 
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/retryButton"
-                android:layout_width="match_parent"
-                android:layout_height="52dp"
-                android:layout_marginTop="22dp"
-                android:text="@string/reload" />
+                <TextView
+                    android:id="@+id/errorTitle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:gravity="center"
+                    android:text="@string/web_error_title"
+                    android:textColor="@color/zr_text"
+                    android:textSize="21sp"
+                    android:textStyle="bold" />
 
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/homeButton"
-                style="@style/Widget.Material3.Button.OutlinedButton"
-                android:layout_width="match_parent"
-                android:layout_height="52dp"
-                android:layout_marginTop="10dp"
-                android:text="@string/back_home" />
-        </LinearLayout>
+                <TextView
+                    android:id="@+id/errorMessage"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:gravity="center"
+                    android:lineSpacingExtra="2dp"
+                    android:text="@string/web_error_generic"
+                    android:textColor="@color/zr_text_secondary"
+                    android:textSize="15sp" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/retryButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="22dp"
+                    android:minHeight="52dp"
+                    android:text="@string/reload" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/homeButton"
+                    style="@style/Widget.Material3.Button.OutlinedButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:minHeight="52dp"
+                    android:text="@string/back_home" />
+            </LinearLayout>
+        </ScrollView>
     </FrameLayout>
 </LinearLayout>

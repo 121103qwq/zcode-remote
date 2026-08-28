@@ -4,8 +4,13 @@ import android.Manifest
 import android.app.Activity
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Color
+import android.hardware.display.DisplayManager
 import android.os.Bundle
+import android.view.Surface
 import android.view.View
+import android.view.WindowManager
+import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
@@ -14,6 +19,7 @@ import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
 import androidx.camera.core.Preview
+import androidx.camera.core.UseCase
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
@@ -36,10 +42,25 @@ import java.util.concurrent.atomic.AtomicBoolean
 class ScannerActivity : AppCompatActivity() {
     private lateinit var binding: ActivityScannerBinding
     private lateinit var analyzerExecutor: ExecutorService
+    private lateinit var displayManager: DisplayManager
     private var cameraProvider: ProcessCameraProvider? = null
     private var camera: Camera? = null
+    private var previewUseCase: Preview? = null
+    private var analysisUseCase: ImageAnalysis? = null
+    private var cameraStartGeneration = 0
+    private var displayListenerRegistered = false
     private var torchEnabled = false
     private val completed = AtomicBoolean(false)
+
+    private val displayListener = object : DisplayManager.DisplayListener {
+        override fun onDisplayAdded(displayId: Int) = Unit
+
+        override fun onDisplayRemoved(displayId: Int) = Unit
+
+        override fun onDisplayChanged(displayId: Int) {
+            updateTargetRotation(displayId)
+        }
+    }
 
     private val reader = MultiFormatReader().apply {
         setHints(
@@ -59,11 +80,16 @@ class ScannerActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+        window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        enableEdgeToEdge(
+            statusBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
+            navigationBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
+        )
         binding = ActivityScannerBinding.inflate(layoutInflater)
         setContentView(binding.root)
         applyInsets()
         analyzerExecutor = Executors.newSingleThreadExecutor()
+        displayManager = getSystemService(DisplayManager::class.java)
 
         binding.closeButton.setOnClickListener { finish() }
         binding.torchButton.setOnClickListener { toggleTorch() }
@@ -84,53 +110,128 @@ class ScannerActivity : AppCompatActivity() {
         }
     }
 
+    override fun onStart() {
+        super.onStart()
+        if (!displayListenerRegistered) {
+            displayManager.registerDisplayListener(displayListener, null)
+            displayListenerRegistered = true
+        }
+        updateTargetRotation()
+    }
+
+    override fun onStop() {
+        if (displayListenerRegistered) {
+            runCatching { displayManager.unregisterDisplayListener(displayListener) }
+            displayListenerRegistered = false
+        }
+        super.onStop()
+    }
+
     override fun onDestroy() {
-        cameraProvider?.unbindAll()
+        cameraStartGeneration += 1
+        analysisUseCase?.clearAnalyzer()
+        unbindOwnedUseCases()
+        cameraProvider = null
         if (::analyzerExecutor.isInitialized) analyzerExecutor.shutdownNow()
         super.onDestroy()
     }
 
     private fun applyInsets() {
         ViewCompat.setOnApplyWindowInsetsListener(binding.root) { view, insets ->
-            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            val bars = insets.getInsets(
+                WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout(),
+            )
             view.setPadding(bars.left, bars.top, bars.right, bars.bottom)
             insets
         }
     }
 
     private fun startCamera() {
+        val generation = ++cameraStartGeneration
         val future = ProcessCameraProvider.getInstance(this)
         future.addListener(
             {
+                if (!isCurrentCameraStart(generation)) return@addListener
                 runCatching {
                     val provider = future.get()
-                    cameraProvider = provider
+                    if (!isCurrentCameraStart(generation)) return@runCatching
 
-                    val preview = Preview.Builder().build().also {
-                        it.surfaceProvider = binding.previewView.surfaceProvider
-                    }
+                    cameraProvider = provider
+                    unbindOwnedUseCases()
+
+                    val targetRotation = binding.previewView.display?.rotation
+                        ?: Surface.ROTATION_0
+                    val selector = selectCamera(provider)
+
+                    val preview = Preview.Builder()
+                        .setTargetRotation(targetRotation)
+                        .build()
+                        .also {
+                            it.surfaceProvider = binding.previewView.surfaceProvider
+                        }
                     val analysis = ImageAnalysis.Builder()
                         .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                        .setTargetRotation(targetRotation)
                         .build()
                         .also { it.setAnalyzer(analyzerExecutor, ::analyze) }
 
-                    provider.unbindAll()
+                    previewUseCase = preview
+                    analysisUseCase = analysis
                     camera = provider.bindToLifecycle(
                         this,
-                        CameraSelector.DEFAULT_BACK_CAMERA,
+                        selector,
                         preview,
                         analysis,
                     )
+                    torchEnabled = false
+                    binding.torchButton.setText(R.string.scanner_torch_on)
                     binding.torchButton.visibility =
                         if (camera?.cameraInfo?.hasFlashUnit() == true) View.VISIBLE else View.GONE
                 }.onFailure {
-                    Snackbar.make(binding.root, R.string.camera_error, Snackbar.LENGTH_INDEFINITE)
-                        .setAction(R.string.scanner_close) { finish() }
-                        .show()
+                    if (isCurrentCameraStart(generation)) {
+                        analysisUseCase?.clearAnalyzer()
+                        unbindOwnedUseCases()
+                        Snackbar.make(binding.root, R.string.camera_error, Snackbar.LENGTH_INDEFINITE)
+                            .setAction(R.string.scanner_close) { finish() }
+                            .show()
+                    }
                 }
             },
             ContextCompat.getMainExecutor(this),
         )
+    }
+
+    private fun isCurrentCameraStart(generation: Int): Boolean =
+        generation == cameraStartGeneration &&
+            !isFinishing &&
+            !isDestroyed &&
+            !analyzerExecutor.isShutdown
+
+    private fun selectCamera(provider: ProcessCameraProvider): CameraSelector = when {
+        provider.hasCamera(CameraSelector.DEFAULT_BACK_CAMERA) -> CameraSelector.DEFAULT_BACK_CAMERA
+        provider.hasCamera(CameraSelector.DEFAULT_FRONT_CAMERA) ->
+            CameraSelector.DEFAULT_FRONT_CAMERA
+
+        else -> error("No CameraX-compatible camera is available")
+    }
+
+    private fun unbindOwnedUseCases() {
+        val ownedUseCases = listOfNotNull<UseCase>(previewUseCase, analysisUseCase).toTypedArray()
+        if (ownedUseCases.isNotEmpty()) {
+            runCatching { cameraProvider?.unbind(*ownedUseCases) }
+        }
+        previewUseCase = null
+        analysisUseCase = null
+        camera = null
+    }
+
+    private fun updateTargetRotation(changedDisplayId: Int? = null) {
+        if (!::binding.isInitialized) return
+        val display = binding.previewView.display ?: return
+        if (changedDisplayId != null && display.displayId != changedDisplayId) return
+
+        previewUseCase?.targetRotation = display.rotation
+        analysisUseCase?.targetRotation = display.rotation
     }
 
     private fun analyze(image: ImageProxy) {

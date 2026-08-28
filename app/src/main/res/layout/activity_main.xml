@@ -10,8 +10,9 @@
     <com.google.android.material.appbar.MaterialToolbar
         android:id="@+id/toolbar"
         android:layout_width="match_parent"
-        android:layout_height="?attr/actionBarSize"
+        android:layout_height="wrap_content"
         android:background="@color/zr_background"
+        android:minHeight="?attr/actionBarSize"
         android:paddingStart="8dp"
         android:paddingEnd="8dp"
         app:title="@string/app_name"
@@ -102,8 +103,10 @@
                             android:layout_height="wrap_content"
                             android:layout_marginTop="16dp"
                             android:hint="@string/remote_url_label"
+                            android:saveEnabled="false"
                             app:boxStrokeColor="@color/zr_primary"
-                            app:helperTextEnabled="true">
+                            app:helperTextEnabled="true"
+                            app:placeholderText="@string/remote_url_hint">
 
                             <com.google.android.material.textfield.TextInputEditText
                                 android:id="@+id/urlInput"
@@ -111,12 +114,12 @@
                                 android:layout_height="wrap_content"
                                 android:autofillHints=""
                                 android:gravity="start|top"
-                                android:hint="@string/remote_url_hint"
                                 android:importantForAutofill="noExcludeDescendants"
                                 android:inputType="textUri|textNoSuggestions"
                                 android:maxLength="8192"
                                 android:maxLines="3"
                                 android:minLines="2"
+                                android:saveEnabled="false"
                                 android:textDirection="ltr" />
                         </com.google.android.material.textfield.TextInputLayout>
 
@@ -125,6 +128,7 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="8dp"
+                            android:accessibilityLiveRegion="polite"
                             android:textColor="@color/zr_success"
                             android:textSize="13sp"
                             android:visibility="gone" />
@@ -133,32 +137,32 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="12dp"
-                            android:orientation="horizontal">
+                            android:orientation="vertical">
 
                             <com.google.android.material.button.MaterialButton
                                 android:id="@+id/pasteButton"
                                 style="@style/Widget.Material3.Button.OutlinedButton"
-                                android:layout_width="0dp"
-                                android:layout_height="52dp"
-                                android:layout_marginEnd="6dp"
-                                android:layout_weight="1"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:minHeight="52dp"
                                 android:text="@string/paste" />
 
                             <com.google.android.material.button.MaterialButton
                                 android:id="@+id/scanButton"
                                 style="@style/Widget.Material3.Button.OutlinedButton"
-                                android:layout_width="0dp"
-                                android:layout_height="52dp"
-                                android:layout_marginStart="6dp"
-                                android:layout_weight="1"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="8dp"
+                                android:minHeight="52dp"
                                 android:text="@string/scan_qr" />
                         </LinearLayout>
 
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/connectButton"
                             android:layout_width="match_parent"
-                            android:layout_height="54dp"
+                            android:layout_height="wrap_content"
                             android:layout_marginTop="12dp"
+                            android:minHeight="54dp"
                             android:text="@string/connect"
                             android:textStyle="bold" />
                     </LinearLayout>

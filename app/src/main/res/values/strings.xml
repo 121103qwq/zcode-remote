@@ -31,10 +31,12 @@
     <string name="clear_data_message">最近连接、加密凭据、Cookie、网页存储和缓存都会被删除。电脑端数据不会受到影响。</string>
     <string name="clear">清除</string>
     <string name="data_cleared">本机数据已清除</string>
+    <string name="data_clear_partial">部分本机数据未能清除，请重试</string>
     <string name="about_message">ZLink Remote 是一个独立的非官方 Android 客户端，只承载 ZCode 官方 Remote 网页，不复刻私有协议，也不会把链接上传到其他服务器。\n\nZCode 名称归其权利人所有。</string>
 
     <string name="loading_workspace">正在加载工作区…</string>
-    <string name="network_offline">网络已断开，恢复后可重新加载</string>
+    <string name="network_offline">当前网络无法访问互联网，恢复后可重新加载</string>
+    <string name="navigate_back">返回</string>
     <string name="reload">重新加载</string>
     <string name="back_home">返回首页</string>
     <string name="leave_title">返回连接页？</string>
@@ -44,11 +46,14 @@
     <string name="web_error_generic">请检查网络和电脑端 Remote 是否仍然开启。</string>
     <string name="web_error_expired">这个 Remote 链接可能已经失效，请回到电脑端重新生成。</string>
     <string name="web_error_ssl">无法验证服务器身份，连接已被阻止。</string>
+    <string name="web_error_unsafe">网页尝试离开 ZCode 官方站点，已停止加载。</string>
     <string name="web_error_renderer">系统 WebView 意外停止，可以尝试重新加载。</string>
     <string name="webview_unavailable">系统 WebView 不可用。请在系统应用商店更新或启用 Android System WebView / 小米系统 WebView。</string>
     <string name="external_link_blocked">已阻止不安全的外部链接</string>
     <string name="file_picker_unavailable">无法打开系统文件选择器</string>
+    <string name="unsafe_file_rejected">已拒绝文件选择器返回的不安全内容</string>
     <string name="secure_store_unavailable">安全存储不可用；这次连接不会保存，退出应用后需重新扫码。</string>
+    <string name="session_unavailable">这次临时连接已失效，请重新扫码或粘贴链接</string>
 
     <string name="scanner_title">扫描 ZCode Remote 二维码</string>
     <string name="scanner_hint">把电脑屏幕上的二维码放进框内</string>
@@ -59,6 +64,6 @@
     <string name="camera_permission_message">没有相机权限也没关系，可以返回后粘贴 Remote 链接。</string>
     <string name="camera_error">相机启动失败，请返回后改用粘贴链接</string>
 
-    <string name="delete_connection_content_description">删除这条连接</string>
+    <string name="delete_connection_content_description">删除连接：%1$s</string>
     <string name="connection_card_content_description">连接到 %1$s</string>
 </resources>

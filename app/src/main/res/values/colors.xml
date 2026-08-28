@@ -7,8 +7,9 @@
     <color name="zr_on_primary">#FFFFFF</color>
     <color name="zr_text">#172033</color>
     <color name="zr_text_secondary">#667085</color>
-    <color name="zr_success">#168B5B</color>
+    <color name="zr_success">#0D764B</color>
     <color name="zr_warning">#A86500</color>
+    <color name="zr_on_warning">#FFFFFF</color>
     <color name="zr_error">#B3261E</color>
     <color name="zr_outline">#CDD2DC</color>
     <color name="zr_scanner_scrim">#990E1117</color>
