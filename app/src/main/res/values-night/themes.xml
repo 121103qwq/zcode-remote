@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.ZCodeRemote" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/zr_primary</item>
+        <item name="colorOnPrimary">@color/zr_on_primary</item>
+        <item name="colorSurface">@color/zr_surface</item>
+        <item name="colorSurfaceVariant">@color/zr_surface_variant</item>
+        <item name="colorOnSurface">@color/zr_text</item>
+        <item name="colorOnSurfaceVariant">@color/zr_text_secondary</item>
+        <item name="colorOutline">@color/zr_outline</item>
+        <item name="colorError">@color/zr_error</item>
+        <item name="android:colorAccent">@color/zr_primary</item>
+        <item name="android:windowBackground">@color/zr_background</item>
+        <item name="android:navigationBarColor">@color/zr_background</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:fontFamily">sans</item>
+    </style>
+</resources>

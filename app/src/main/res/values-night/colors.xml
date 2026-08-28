@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="zr_background">#0E1117</color>
+    <color name="zr_surface">#171C24</color>
+    <color name="zr_surface_variant">#222936</color>
+    <color name="zr_primary">#A6A7FF</color>
+    <color name="zr_on_primary">#1B1B58</color>
+    <color name="zr_text">#F2F5F9</color>
+    <color name="zr_text_secondary">#A5AEBD</color>
+    <color name="zr_success">#49D99A</color>
+    <color name="zr_warning">#F2B84B</color>
+    <color name="zr_error">#FFB4AB</color>
+    <color name="zr_outline">#3B4555</color>
+    <color name="zr_scanner_scrim">#B30E1117</color>
+    <color name="zr_launcher_background">#5B5CE2</color>
+</resources>
