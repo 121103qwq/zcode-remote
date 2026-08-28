@@ -19,6 +19,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import com.google.android.material.snackbar.Snackbar
@@ -54,6 +55,7 @@ class RemoteActivity : AppCompatActivity(), TrustedRemoteWebViewClient.Callbacks
         super.onCreate(savedInstanceState)
         window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
         enableEdgeToEdge()
+        enterImmersiveMode()
 
         if (WebView.getCurrentWebViewPackage() == null) {
             Toast.makeText(this, R.string.webview_unavailable, Toast.LENGTH_LONG).show()
@@ -77,7 +79,6 @@ class RemoteActivity : AppCompatActivity(), TrustedRemoteWebViewClient.Callbacks
 
         binding = ActivityRemoteBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        enterImmersiveMode()
         applyInsets()
         configureErrorActions()
 
@@ -139,7 +140,7 @@ class RemoteActivity : AppCompatActivity(), TrustedRemoteWebViewClient.Callbacks
     }
 
     private fun enterImmersiveMode() {
-        ViewCompat.getWindowInsetsController(window.decorView)?.apply {
+        WindowCompat.getInsetsController(window, window.decorView).apply {
             systemBarsBehavior =
                 WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
             hide(WindowInsetsCompat.Type.systemBars())
@@ -177,11 +178,6 @@ class RemoteActivity : AppCompatActivity(), TrustedRemoteWebViewClient.Callbacks
         target.clearCache(true)
         target.webViewClient = TrustedRemoteWebViewClient(this)
         target.webChromeClient = object : WebChromeClient() {
-            override fun onProgressChanged(view: WebView, newProgress: Int) {
-                binding.progress.progress = newProgress
-                binding.progress.visibility = if (newProgress >= 100) View.GONE else View.VISIBLE
-            }
-
             override fun onShowFileChooser(
                 webView: WebView,
                 filePathCallback: ValueCallback<Array<Uri>>,
@@ -234,8 +230,6 @@ class RemoteActivity : AppCompatActivity(), TrustedRemoteWebViewClient.Callbacks
         target.clearCache(true)
         binding.errorPanel.visibility = View.GONE
         target.visibility = View.VISIBLE
-        binding.progress.visibility = View.VISIBLE
-        binding.progress.progress = 5
         target.loadUrl(session.url)
     }
 
@@ -267,12 +261,10 @@ class RemoteActivity : AppCompatActivity(), TrustedRemoteWebViewClient.Callbacks
     override fun onPageStarted() {
         binding.errorPanel.visibility = View.GONE
         webView?.visibility = View.VISIBLE
-        binding.progress.visibility = View.VISIBLE
     }
 
     override fun onPageFinished() {
         webView?.clearCache(true)
-        binding.progress.visibility = View.GONE
     }
 
     override fun onMainFrameError(kind: TrustedRemoteWebViewClient.ErrorKind) {
@@ -312,7 +304,6 @@ class RemoteActivity : AppCompatActivity(), TrustedRemoteWebViewClient.Callbacks
     }
 
     private fun showError(messageResource: Int) {
-        binding.progress.visibility = View.GONE
         webView?.visibility = View.GONE
         binding.errorMessage.setText(messageResource)
         binding.errorPanel.visibility = View.VISIBLE

@@ -53,14 +53,14 @@ jobs:
 
       - name: Prepare artifact
         run: |
-          cp app/build/outputs/apk/debug/app-debug.apk ZLink-Remote-v0.1.1-debug.apk
-          sha256sum ZLink-Remote-v0.1.1-debug.apk > SHA256SUMS.txt
+          cp app/build/outputs/apk/debug/app-debug.apk ZLink-Remote-v0.1.2-debug.apk
+          sha256sum ZLink-Remote-v0.1.2-debug.apk > SHA256SUMS.txt
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: ZLink-Remote-debug-${{ github.sha }}
           path: |
-            ZLink-Remote-v0.1.1-debug.apk
+            ZLink-Remote-v0.1.2-debug.apk
             SHA256SUMS.txt
           if-no-files-found: error
