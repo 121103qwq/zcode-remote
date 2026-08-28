@@ -11,7 +11,8 @@
 - 支持官方 `/remote/v3` 与 `/remote/v4` 链接
 - 单一活动 WebView，符合官方“一次一个手机页面”的限制
 - 最近 6 条连接；完整凭据使用 Android Keystore + AES-GCM 加密
-- 原生加载进度、离线提示、错误页、刷新与返回逻辑
+- 原生加载进度和错误重试
+- Remote 页面沉浸式全屏，不保留原生顶部栏；直接使用系统侧滑返回退出
 - 受约束的系统文件选择器，只接收用户明确选择的可读 `content://` URI，不申请存储权限
 - Android 8.0（API 26）及以上；面向 Android 16（API 36）
 - CameraX + ZXing 扫码，不依赖 Google Play Services

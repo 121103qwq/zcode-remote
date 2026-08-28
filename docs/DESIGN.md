@@ -12,7 +12,7 @@ The official web page already owns protocol compatibility, permission prompts, t
 |---|---|
 | `MainActivity` | Explicit paste/share import, scan launch, validation preview, recent connections |
 | `ScannerActivity` | CameraX preview and local ZXing QR decoding |
-| `RemoteActivity` | One hardened WebView, native progress/errors, file chooser, back/reload behavior |
+| `RemoteActivity` | One immersive full-screen hardened WebView, overlay progress/errors, file chooser, system back gesture |
 | `RemoteUrlPolicy` | One shared allowlist for every incoming URL and top-level navigation |
 | `SessionStore` | Six encrypted recent credentials; no conversation cache |
 | `CredentialCipher` | Android Keystore AES-GCM key lifecycle |

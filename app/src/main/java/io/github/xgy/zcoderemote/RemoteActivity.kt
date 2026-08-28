@@ -2,12 +2,8 @@ package io.github.xgy.zcoderemote
 
 import android.content.Context
 import android.content.Intent
-import android.net.ConnectivityManager
-import android.net.Network
-import android.net.NetworkCapabilities
 import android.net.Uri
 import android.os.Bundle
-import android.view.Menu
 import android.view.View
 import android.view.WindowManager
 import android.webkit.ConsoleMessage
@@ -19,13 +15,12 @@ import android.webkit.WebChromeClient
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.widget.Toast
-import androidx.activity.OnBackPressedCallback
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import androidx.core.view.WindowInsetsControllerCompat
 import com.google.android.material.snackbar.Snackbar
 import io.github.xgy.zcoderemote.data.RemoteSession
 import io.github.xgy.zcoderemote.data.SessionStore
@@ -33,13 +28,10 @@ import io.github.xgy.zcoderemote.data.TransientSessionVault
 import io.github.xgy.zcoderemote.databinding.ActivityRemoteBinding
 import io.github.xgy.zcoderemote.security.RemoteUrlPolicy
 import io.github.xgy.zcoderemote.web.TrustedRemoteWebViewClient
-import kotlin.math.max
 
 class RemoteActivity : AppCompatActivity(), TrustedRemoteWebViewClient.Callbacks {
     private lateinit var binding: ActivityRemoteBinding
     private lateinit var session: RemoteSession
-    private lateinit var connectivityManager: ConnectivityManager
-    private var networkCallbackRegistered = false
     private var webView: WebView? = null
     private var fileChooserCallback: ValueCallback<Array<Uri>>? = null
     private var acceptedFileTypes: List<String> = listOf(ANY_MIME_TYPE)
@@ -56,23 +48,6 @@ class RemoteActivity : AppCompatActivity(), TrustedRemoteWebViewClient.Callbacks
         }
         acceptedFileTypes = listOf(ANY_MIME_TYPE)
         runCatching { callback.onReceiveValue(values) }
-    }
-
-    private val networkCallback = object : ConnectivityManager.NetworkCallback() {
-        override fun onAvailable(network: Network) {
-            refreshNetworkBannerOnMainThread()
-        }
-
-        override fun onLost(network: Network) {
-            refreshNetworkBannerOnMainThread()
-        }
-
-        override fun onCapabilitiesChanged(
-            network: Network,
-            networkCapabilities: NetworkCapabilities,
-        ) {
-            refreshNetworkBannerOnMainThread()
-        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -102,25 +77,24 @@ class RemoteActivity : AppCompatActivity(), TrustedRemoteWebViewClient.Callbacks
 
         binding = ActivityRemoteBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        enterImmersiveMode()
         applyInsets()
-        configureToolbar()
-        configureBackHandling()
         configureErrorActions()
-
-        connectivityManager = getSystemService(ConnectivityManager::class.java)
-        refreshNetworkBanner()
-        registerNetworkCallback()
 
         webView = binding.webView
         configureWebView(binding.webView)
-        binding.toolbar.title = session.name
-        binding.toolbar.subtitle = session.displayLocation
         loadSession()
     }
 
     override fun onResume() {
         super.onResume()
+        enterImmersiveMode()
         webView?.onResume()
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) enterImmersiveMode()
     }
 
     override fun onPause() {
@@ -130,9 +104,6 @@ class RemoteActivity : AppCompatActivity(), TrustedRemoteWebViewClient.Callbacks
     }
 
     override fun onDestroy() {
-        if (networkCallbackRegistered) {
-            runCatching { connectivityManager.unregisterNetworkCallback(networkCallback) }
-        }
         cancelPendingFileChooser()
         destroyWebView(webView)
         webView = null
@@ -149,50 +120,35 @@ class RemoteActivity : AppCompatActivity(), TrustedRemoteWebViewClient.Callbacks
 
     private fun applyInsets() {
         ViewCompat.setOnApplyWindowInsetsListener(binding.root) { view, insets ->
-            val bars = insets.getInsets(
-                WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout(),
-            )
             val ime = insets.getInsets(WindowInsetsCompat.Type.ime())
-            view.setPadding(bars.left, bars.top, bars.right, max(bars.bottom, ime.bottom))
+            view.setPadding(0, 0, 0, ime.bottom)
+
+            val safe = insets.getInsets(
+                WindowInsetsCompat.Type.displayCutout() or
+                    WindowInsetsCompat.Type.systemGestures(),
+            )
+            val spacing = dp(28)
+            binding.errorContent.setPadding(
+                safe.left + spacing,
+                safe.top + spacing,
+                safe.right + spacing,
+                safe.bottom + spacing,
+            )
             insets
         }
     }
 
-    private fun configureToolbar() {
-        binding.toolbar.menu.add(Menu.NONE, MENU_RELOAD, Menu.NONE, R.string.reload).apply {
-            setShowAsAction(android.view.MenuItem.SHOW_AS_ACTION_IF_ROOM)
+    private fun enterImmersiveMode() {
+        ViewCompat.getWindowInsetsController(window.decorView)?.apply {
+            systemBarsBehavior =
+                WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            hide(WindowInsetsCompat.Type.systemBars())
         }
-        binding.toolbar.menu.add(Menu.NONE, MENU_HOME, Menu.NONE, R.string.back_home)
-        binding.toolbar.setNavigationOnClickListener { handleBack() }
-        binding.toolbar.setOnMenuItemClickListener { item ->
-            when (item.itemId) {
-                MENU_RELOAD -> {
-                    loadSession()
-                    true
-                }
-
-                MENU_HOME -> {
-                    confirmLeave()
-                    true
-                }
-
-                else -> false
-            }
-        }
-    }
-
-    private fun configureBackHandling() {
-        onBackPressedDispatcher.addCallback(
-            this,
-            object : OnBackPressedCallback(true) {
-                override fun handleOnBackPressed() = handleBack()
-            },
-        )
     }
 
     private fun configureErrorActions() {
         binding.retryButton.setOnClickListener { loadSession() }
-        binding.homeButton.setOnClickListener { confirmLeave() }
+        binding.homeButton.setOnClickListener { finish() }
     }
 
     private fun configureWebView(target: WebView) {
@@ -224,16 +180,6 @@ class RemoteActivity : AppCompatActivity(), TrustedRemoteWebViewClient.Callbacks
             override fun onProgressChanged(view: WebView, newProgress: Int) {
                 binding.progress.progress = newProgress
                 binding.progress.visibility = if (newProgress >= 100) View.GONE else View.VISIBLE
-            }
-
-            override fun onReceivedTitle(view: WebView, title: String?) {
-                if (!isTrustedCurrentPage()) return
-                val safeTitle = title
-                    ?.filterNot { it.isISOControl() }
-                    ?.trim()
-                    ?.take(64)
-                    ?.takeIf(String::isNotBlank)
-                if (safeTitle != null) binding.toolbar.title = safeTitle
             }
 
             override fun onShowFileChooser(
@@ -290,7 +236,6 @@ class RemoteActivity : AppCompatActivity(), TrustedRemoteWebViewClient.Callbacks
         target.visibility = View.VISIBLE
         binding.progress.visibility = View.VISIBLE
         binding.progress.progress = 5
-        binding.toolbar.title = session.name
         target.loadUrl(session.url)
     }
 
@@ -317,49 +262,6 @@ class RemoteActivity : AppCompatActivity(), TrustedRemoteWebViewClient.Callbacks
         target.webViewClient = android.webkit.WebViewClient()
         target.removeAllViews()
         target.destroy()
-    }
-
-    private fun handleBack() {
-        val target = webView
-        if (target?.canGoBack() == true) {
-            target.goBack()
-        } else {
-            confirmLeave()
-        }
-    }
-
-    private fun confirmLeave() {
-        MaterialAlertDialogBuilder(this)
-            .setTitle(R.string.leave_title)
-            .setMessage(R.string.leave_message)
-            .setNegativeButton(R.string.cancel, null)
-            .setPositiveButton(R.string.leave) { _, _ -> finish() }
-            .show()
-    }
-
-    private fun refreshNetworkBanner() {
-        val network = connectivityManager.activeNetwork
-        val capabilities = network?.let(connectivityManager::getNetworkCapabilities)
-        val online = capabilities?.run {
-            hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
-                hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
-        } == true
-        binding.networkBanner.visibility = if (online) View.GONE else View.VISIBLE
-    }
-
-    private fun refreshNetworkBannerOnMainThread() {
-        runOnUiThread {
-            if (!isFinishing && !isDestroyed && ::binding.isInitialized) {
-                refreshNetworkBanner()
-            }
-        }
-    }
-
-    private fun registerNetworkCallback() {
-        runCatching {
-            connectivityManager.registerDefaultNetworkCallback(networkCallback)
-            networkCallbackRegistered = true
-        }
     }
 
     override fun onPageStarted() {
@@ -497,10 +399,10 @@ class RemoteActivity : AppCompatActivity(), TrustedRemoteWebViewClient.Callbacks
         if (callback != null) runCatching { callback.onReceiveValue(null) }
     }
 
+    private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
+
     companion object {
         private const val EXTRA_SESSION_ID = "io.github.xgy.zcoderemote.SESSION_ID"
-        private const val MENU_RELOAD = 1
-        private const val MENU_HOME = 2
         private const val ANY_MIME_TYPE = "*/*"
         private const val MAX_ACCEPTED_MIME_TYPES = 16
         private const val MAX_SELECTED_FILES = 10

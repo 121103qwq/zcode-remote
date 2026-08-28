@@ -8,8 +8,6 @@
     <color name="zr_text">#F2F5F9</color>
     <color name="zr_text_secondary">#A5AEBD</color>
     <color name="zr_success">#49D99A</color>
-    <color name="zr_warning">#F2B84B</color>
-    <color name="zr_on_warning">#2B1B00</color>
     <color name="zr_error">#FFB4AB</color>
     <color name="zr_outline">#3B4555</color>
     <color name="zr_scanner_scrim">#B30E1117</color>

@@ -1,51 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/zr_background"
-    android:orientation="vertical">
-
-    <com.google.android.material.appbar.MaterialToolbar
-        android:id="@+id/toolbar"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:background="@color/zr_surface"
-        android:minHeight="?attr/actionBarSize"
-        app:navigationIcon="@drawable/ic_arrow_back"
-        app:navigationContentDescription="@string/navigate_back"
-        app:titleTextColor="@color/zr_text"
-        app:subtitleTextColor="@color/zr_text_secondary" />
-
-    <com.google.android.material.progressindicator.LinearProgressIndicator
-        android:id="@+id/progress"
-        android:layout_width="match_parent"
-        android:layout_height="3dp"
-        android:indeterminate="false"
-        android:max="100"
-        android:visibility="visible"
-        app:indicatorColor="@color/zr_primary"
-        app:trackColor="@color/zr_surface_variant" />
-
-    <TextView
-        android:id="@+id/networkBanner"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:accessibilityLiveRegion="polite"
-        android:background="@color/zr_warning"
-        android:gravity="center"
-        android:padding="8dp"
-        android:text="@string/network_offline"
-        android:textColor="@color/zr_on_warning"
-        android:textSize="13sp"
-        android:visibility="gone" />
+    android:background="@color/zr_background">
 
     <FrameLayout
         android:id="@+id/webContainer"
         android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1">
+        android:layout_height="match_parent">
 
         <WebView
             android:id="@+id/webView"
@@ -62,6 +26,7 @@
             android:visibility="gone">
 
             <LinearLayout
+                android:id="@+id/errorContent"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:gravity="center"
@@ -118,4 +83,17 @@
             </LinearLayout>
         </ScrollView>
     </FrameLayout>
-</LinearLayout>
+
+    <com.google.android.material.progressindicator.LinearProgressIndicator
+        android:id="@+id/progress"
+        android:layout_width="match_parent"
+        android:layout_height="3dp"
+        android:layout_gravity="top"
+        android:elevation="4dp"
+        android:indeterminate="false"
+        android:max="100"
+        android:visibility="visible"
+        app:indicatorColor="@color/zr_primary"
+        app:trackColor="@android:color/transparent" />
+
+</FrameLayout>

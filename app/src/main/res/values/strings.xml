@@ -35,7 +35,6 @@
     <string name="about_message">ZLink Remote 是一个独立的非官方 Android 客户端，只承载 ZCode 官方 Remote 网页，不复刻私有协议，也不会把链接上传到其他服务器。\n\nZCode 名称归其权利人所有。</string>
 
     <string name="loading_workspace">正在加载工作区…</string>
-    <string name="network_offline">当前网络无法访问互联网，恢复后可重新加载</string>
     <string name="navigate_back">返回</string>
     <string name="reload">重新加载</string>
     <string name="back_home">返回首页</string>
