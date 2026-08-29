@@ -12,7 +12,6 @@ import android.util.TypedValue
 import android.view.Gravity
 import android.view.Menu
 import android.view.View
-import android.view.WindowManager
 import android.view.inputmethod.EditorInfo
 import android.webkit.CookieManager
 import android.webkit.WebStorage
@@ -36,6 +35,7 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
 import io.github.xgy.zcoderemote.data.RemoteSession
 import io.github.xgy.zcoderemote.data.SessionStore
+import io.github.xgy.zcoderemote.data.StartupSessionPolicy
 import io.github.xgy.zcoderemote.data.TransientSessionVault
 import io.github.xgy.zcoderemote.databinding.ActivityMainBinding
 import io.github.xgy.zcoderemote.scanner.QrImageDecoder
@@ -75,7 +75,6 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
         enableEdgeToEdge(
             statusBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
             navigationBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
@@ -90,6 +89,7 @@ class MainActivity : AppCompatActivity() {
         configureInput()
         configureActions()
         acceptSharedText(intent)
+        autoOpenStartupSession(intent, savedInstanceState != null)
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -121,10 +121,16 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun configureToolbar() {
+        binding.toolbar.menu.add(Menu.NONE, MENU_SETTINGS, Menu.NONE, R.string.menu_settings)
         binding.toolbar.menu.add(Menu.NONE, MENU_CLEAR_DATA, Menu.NONE, R.string.menu_clear_data)
         binding.toolbar.menu.add(Menu.NONE, MENU_ABOUT, Menu.NONE, R.string.menu_about)
         binding.toolbar.setOnMenuItemClickListener { item ->
             when (item.itemId) {
+                MENU_SETTINGS -> {
+                    showStartupSettings()
+                    true
+                }
+
                 MENU_CLEAR_DATA -> {
                     confirmClearData()
                     true
@@ -307,6 +313,83 @@ class MainActivity : AppCompatActivity() {
         setRemoteLink(parsed)
         // Do not auto-connect: every external input still requires an explicit user tap.
         intent.removeExtra(Intent.EXTRA_TEXT)
+    }
+
+    private fun autoOpenStartupSession(intent: Intent?, isRestored: Boolean) {
+        if (
+            !StartupSessionPolicy.shouldAutoOpen(
+                action = intent?.action,
+                categories = intent?.categories.orEmpty(),
+                isRestored = isRestored,
+            )
+        ) {
+            return
+        }
+        val session = runCatching(sessionStore::startupSession).getOrNull() ?: return
+        val parsed = RemoteUrlPolicy.parseOrNull(session.url) ?: return
+        openRemote(parsed)
+    }
+
+    private fun showStartupSettings() {
+        val sessions = runCatching(sessionStore::list).getOrDefault(emptyList())
+        if (sessions.isEmpty()) {
+            MaterialAlertDialogBuilder(this)
+                .setTitle(R.string.startup_open_title)
+                .setMessage(R.string.startup_open_empty)
+                .setPositiveButton(android.R.string.ok, null)
+                .show()
+            return
+        }
+
+        val designatedId = runCatching(sessionStore::designatedSessionId).getOrNull()
+        val choices = buildList {
+            add(getString(R.string.startup_open_last))
+            sessions.forEach { session ->
+                val relativeTime = DateUtils.getRelativeTimeSpanString(
+                    session.lastUsedAt,
+                    System.currentTimeMillis(),
+                    DateUtils.MINUTE_IN_MILLIS,
+                )
+                add(
+                    getString(
+                        R.string.startup_open_session,
+                        session.name,
+                        session.displayLocation,
+                        relativeTime,
+                    ),
+                )
+            }
+        }.toTypedArray()
+        var selectedIndex = sessions.indexOfFirst { it.id == designatedId }
+            .takeIf { it >= 0 }
+            ?.plus(1)
+            ?: 0
+
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.startup_open_title)
+            .setMessage(R.string.startup_open_message)
+            .setSingleChoiceItems(choices, selectedIndex) { _, which -> selectedIndex = which }
+            .setNegativeButton(R.string.cancel, null)
+            .setPositiveButton(R.string.save) { _, _ ->
+                val selectedSession = sessions.getOrNull(selectedIndex - 1)
+                runCatching { sessionStore.designate(selectedSession?.id) }
+                    .onSuccess {
+                        Toast.makeText(
+                            this,
+                            if (selectedSession == null) {
+                                getString(R.string.startup_open_saved_last)
+                            } else {
+                                getString(R.string.startup_open_saved_session, selectedSession.name)
+                            },
+                            Toast.LENGTH_SHORT,
+                        ).show()
+                    }
+                    .onFailure {
+                        Toast.makeText(this, R.string.startup_open_save_failed, Toast.LENGTH_SHORT)
+                            .show()
+                    }
+            }
+            .show()
     }
 
     private fun setRemoteLink(parsed: RemoteUrlPolicy.Parsed, message: String? = null) {
@@ -562,7 +645,8 @@ class MainActivity : AppCompatActivity() {
     private companion object {
         const val MAX_URL_LENGTH = 8_192
         const val DISABLED_CONTROL_ALPHA = 0.38f
-        const val MENU_CLEAR_DATA = 1
-        const val MENU_ABOUT = 2
+        const val MENU_SETTINGS = 1
+        const val MENU_CLEAR_DATA = 2
+        const val MENU_ABOUT = 3
     }
 }

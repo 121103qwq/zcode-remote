@@ -5,6 +5,7 @@ on:
     branches:
       - main
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -42,25 +43,146 @@ jobs:
       - name: Android lint
         run: ./gradlew --no-daemon :app:lintDebug --stacktrace
 
-      - name: Build installable APK
-        run: ./gradlew --no-daemon :app:assembleDebug --stacktrace
+      - name: Build CI and unsigned stable APKs
+        run: >-
+          ./gradlew --no-daemon
+          :app:assembleDebug
+          :app:assembleStable
+          --stacktrace
 
-      - name: Verify APK signature
+      - name: Verify CI debug signature
         run: >-
           "$ANDROID_HOME/build-tools/35.0.0/apksigner"
           verify --verbose --print-certs
           app/build/outputs/apk/debug/app-debug.apk
 
-      - name: Prepare artifact
+      - name: Stage CI artifacts
+        shell: bash
         run: |
-          cp app/build/outputs/apk/debug/app-debug.apk ZLink-Remote-v0.2.0-debug.apk
-          sha256sum ZLink-Remote-v0.2.0-debug.apk > SHA256SUMS.txt
+          set -euo pipefail
+          test -f app/build/outputs/apk/stable/app-stable-unsigned.apk
+          test -f "$ANDROID_HOME/build-tools/35.0.0/lib/apksigner.jar"
+          mkdir -p ci-output unsigned-output
+          cp app/build/outputs/apk/debug/app-debug.apk ci-output/ZLink-Remote-v0.2.1-CI-debug.apk
+          cp app/build/outputs/apk/stable/app-stable-unsigned.apk unsigned-output/ZLink-Remote-v0.2.1-unsigned.apk
+          cp "$ANDROID_HOME/build-tools/35.0.0/lib/apksigner.jar" unsigned-output/apksigner.jar
+          (cd ci-output && sha256sum ZLink-Remote-v0.2.1-CI-debug.apk > SHA256SUMS.txt)
+          (
+            cd unsigned-output
+            sha256sum ZLink-Remote-v0.2.1-unsigned.apk apksigner.jar > SHA256SUMS.txt
+          )
 
-      - name: Upload APK
+      - name: Upload CI debug APK
         uses: actions/upload-artifact@v4
         with:
-          name: ZLink-Remote-debug-${{ github.sha }}
-          path: |
-            ZLink-Remote-v0.2.0-debug.apk
-            SHA256SUMS.txt
+          name: ZLink-Remote-ci-debug-${{ github.sha }}
+          path: ci-output/
           if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload unsigned stable APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: ZLink-Remote-unsigned-${{ github.sha }}
+          path: unsigned-output/
+          if-no-files-found: error
+          retention-days: 14
+
+  sign-stable:
+    name: Sign stable APK
+    needs: verify-and-build
+    if: >-
+      ${{
+        (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+        github.event_name == 'workflow_dispatch'
+      }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: release
+
+    steps:
+      # Deliberately do not check out or execute repository code in this job.
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android build tools
+        run: sdkmanager "build-tools;35.0.0"
+
+      - name: Download unsigned stable APK
+        uses: actions/download-artifact@v4
+        with:
+          name: ZLink-Remote-unsigned-${{ github.sha }}
+          path: unsigned-input
+
+      - name: Align and sign APK
+        shell: bash
+        env:
+          ZLINK_SIGNING_KEYSTORE_B64: ${{ secrets.ZLINK_SIGNING_KEYSTORE_B64 }}
+          ZLINK_SIGNING_PASSWORD: ${{ secrets.ZLINK_SIGNING_PASSWORD }}
+        run: |
+          set -euo pipefail
+          : "${ZLINK_SIGNING_KEYSTORE_B64:?Missing release environment secret ZLINK_SIGNING_KEYSTORE_B64}"
+          : "${ZLINK_SIGNING_PASSWORD:?Missing release environment secret ZLINK_SIGNING_PASSWORD}"
+
+          KEYSTORE_PATH="${RUNNER_TEMP:?}/zlink-release.p12"
+          ALIGNED_APK="${RUNNER_TEMP:?}/ZLink-Remote-stable-aligned.apk"
+          mkdir -p signed-output
+          umask 077
+          printf '%s' "$ZLINK_SIGNING_KEYSTORE_B64" | base64 --decode > "$KEYSTORE_PATH"
+
+          "$ANDROID_HOME/build-tools/35.0.0/zipalign" -f -p 4 \
+            unsigned-input/ZLink-Remote-v0.2.1-unsigned.apk \
+            "$ALIGNED_APK"
+
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" sign \
+            --ks "$KEYSTORE_PATH" \
+            --ks-type PKCS12 \
+            --ks-key-alias zlink-release \
+            --ks-pass env:ZLINK_SIGNING_PASSWORD \
+            --key-pass env:ZLINK_SIGNING_PASSWORD \
+            --out signed-output/ZLink-Remote-v0.2.1-stable.apk \
+            "$ALIGNED_APK"
+
+      - name: Verify package and pinned signing certificate
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          APK_PATH="signed-output/ZLink-Remote-v0.2.1-stable.apk"
+          VERIFY_OUTPUT="${RUNNER_TEMP:?}/apksigner-verification.txt"
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" \
+            verify --verbose --print-certs "$APK_PATH" | tee "$VERIFY_OUTPUT"
+
+          ACTUAL_CERT_SHA256="$(awk -F': ' '/Signer #1 certificate SHA-256 digest/ { print $2; exit }' "$VERIFY_OUTPUT")"
+          ACTUAL_CERT_SHA256="$(printf '%s' "$ACTUAL_CERT_SHA256" | tr -d ':[:space:]' | tr '[:lower:]' '[:upper:]')"
+          EXPECTED_CERT_SHA256="11C0155F4DD8A5DFA243852A2A2F9AC4A2BE287A75D36C815279F28D2BB9D338"
+
+          if [[ -z "$ACTUAL_CERT_SHA256" || "$ACTUAL_CERT_SHA256" != "$EXPECTED_CERT_SHA256" ]]; then
+            echo "Signing certificate mismatch."
+            echo "Expected: $EXPECTED_CERT_SHA256"
+            echo "Actual:   ${ACTUAL_CERT_SHA256:-not found}"
+            exit 1
+          fi
+
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK_PATH" \
+            | grep -F "package: name='io.github.xgy.zcoderemote' versionCode='5' versionName='0.2.1'"
+          (cd signed-output && sha256sum ZLink-Remote-v0.2.1-stable.apk > SHA256SUMS.txt)
+
+      - name: Remove temporary keystore
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          KEYSTORE_PATH="${RUNNER_TEMP:?}/zlink-release.p12"
+          if [[ -f "$KEYSTORE_PATH" ]]; then
+            chmod u+w "$KEYSTORE_PATH"
+            rm -f -- "$KEYSTORE_PATH"
+          fi
+
+      - name: Upload signed stable APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: ZLink-Remote-stable-${{ github.run_number }}-${{ github.sha }}
+          path: signed-output/
+          if-no-files-found: error
+          retention-days: 90

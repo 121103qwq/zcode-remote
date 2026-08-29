@@ -21,9 +21,11 @@ If a link may have leaked, refresh the QR code or press **Stop** in the ZCode de
   `content://` image, bounds decoded pixels, and performs ZXing recognition locally.
 - Stored URLs are encrypted with an Android Keystore AES-GCM key and excluded from backup.
 - If Keystore encryption fails, the URL is kept only in process memory; it is never downgraded to plaintext storage.
-- Activities that can expose a QR code, URL, or remote page use `FLAG_SECURE`; credential input and
-  WebView state saving are disabled. The WebView bypasses cached responses and clears its disk cache
-  before loading, after completion, on backgrounding, and on destruction.
+- Screenshots are user-enabled by design. A screenshot, screen recording, cast, or recent-task
+  thumbnail may contain a QR code, bearer URL, or Remote page content; users must treat those images
+  as credentials and avoid sharing them. Credential input and WebView state saving remain disabled.
+  The WebView bypasses cached responses and clears its disk cache before loading, after completion,
+  on backgrounding, and on destruction.
 - Production code must not log URLs, queries, cookies, page content, or WebView console output.
 
 ## Reporting a vulnerability

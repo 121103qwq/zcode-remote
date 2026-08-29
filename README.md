@@ -12,6 +12,7 @@
 - 支持官方 `/remote/v3` 与 `/remote/v4` 链接
 - 单一活动 WebView，符合官方“一次一个手机页面”的限制
 - 最近 6 条连接；完整凭据使用 Android Keystore + AES-GCM 加密
+- 设置里可指定启动连接；未指定时从桌面冷启动自动打开上一次连接
 - 原生错误重试
 - Remote 页面只显示全屏网页，不保留顶部栏、加载线或其他原生遮挡；直接使用系统侧滑返回退出
 - 受约束的系统文件选择器，只接收用户明确选择的可读 `content://` URI，不申请存储权限
@@ -34,7 +35,7 @@ Remote 链接本身就是临时授权钥匙。手机页面关闭并不会停止�
 - 不注册 `addJavascriptInterface`，不注入脚本，不自动批准 ZCode 的权限确认。
 - 顶层页面只允许停留在精确的 `zcode.z.ai` 来源；GET、POST 与重定向都会复核，用户点击的站外 HTTPS 链接交给系统浏览器。
 - 完整 URL 不写入日志、页面标题、最近连接 UI、备份或 GitHub Actions 输出。
-- 所有可能显示 Remote 凭据的页面禁用截图/最近任务预览，输入框和 WebView 不保存视图状态。
+- 允许用户按需截图；截图和最近任务缩略图可能包含 Remote 凭据或会话内容，请勿公开分享。输入框和 WebView 仍不保存视图状态。
 - 应用没有自建服务器，也没有统计 SDK。
 
 更多说明见 [SECURITY.md](SECURITY.md) 和 [设计文档](docs/DESIGN.md)。
@@ -44,16 +45,17 @@ Remote 链接本身就是临时授权钥匙。手机页面关闭并不会停止�
 需要 JDK 17 和 Android SDK 36；仓库自带 Gradle 8.13 Wrapper：
 
 ```bash
-./gradlew :app:testDebugUnitTest :app:lintDebug :app:assembleDebug
+./gradlew :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleStable
 ```
 
-APK 位于：
+本机调试 APK 与待签名 stable APK 位于：
 
 ```text
 app/build/outputs/apk/debug/app-debug.apk
+app/build/outputs/apk/stable/app-stable-unsigned.apk
 ```
 
-GitHub Actions 会校验 Gradle Wrapper、运行相同的测试、验证 APK 签名，并上传可安装 debug APK 与 SHA-256。debug 包适合当前侧载测试；正式持续分发前需要配置私有且稳定的 release signing key。
+GitHub Actions 会校验 Gradle Wrapper、运行测试与 Lint，并生成临时 debug 包和未签名 stable 包。固定签名任务只在可信的 `main` 推送或手动触发时运行，私钥不进入 PR 构建；证书指纹和恢复步骤见 [docs/SIGNING.md](docs/SIGNING.md)。
 
 ## Clean-room 说明
 

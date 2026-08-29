@@ -40,8 +40,18 @@
     <string name="remove">移除</string>
     <string name="cancel">取消</string>
 
+    <string name="menu_settings">设置</string>
     <string name="menu_clear_data">清除本机数据</string>
     <string name="menu_about">关于</string>
+    <string name="startup_open_title">启动时打开</string>
+    <string name="startup_open_message">可指定一个固定连接；未指定时自动打开上一次连接。只在从桌面冷启动时生效。</string>
+    <string name="startup_open_last">上一次连接（不指定）</string>
+    <string name="startup_open_session">%1$s · %3$s\n%2$s</string>
+    <string name="startup_open_empty">还没有可指定的连接。先完成一次连接，之后从桌面冷启动时会自动打开上一次连接。</string>
+    <string name="startup_open_saved_last">已设为打开上一次连接</string>
+    <string name="startup_open_saved_session">已指定：%1$s</string>
+    <string name="startup_open_save_failed">无法保存启动设置，请重试</string>
+    <string name="save">保存</string>
     <string name="clear_data_title">清除本机数据？</string>
     <string name="clear_data_message">最近连接、加密凭据、Cookie、网页存储和缓存都会被删除。电脑端数据不会受到影响。</string>
     <string name="clear">清除</string>
