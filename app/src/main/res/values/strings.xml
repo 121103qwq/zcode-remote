@@ -5,17 +5,32 @@
     <string name="unofficial_notice">非官方客户端 · 只连接你自己的 ZCode 桌面端</string>
 
     <string name="connect_title">连接到 ZCode</string>
-    <string name="connect_help">在电脑端 ZCode 打开“手机远控”，然后扫描二维码或粘贴链接。</string>
+    <string name="connect_help">粘贴链接，或从右侧扫描、读取二维码。</string>
     <string name="remote_url_label">Remote 链接</string>
     <string name="remote_url_hint">https://zcode.z.ai/remote/v4?…</string>
     <string name="paste">粘贴</string>
+    <string name="paste_link_content_description">粘贴 Remote 链接</string>
     <string name="scan_qr">扫描二维码</string>
     <string name="connect">连接</string>
+    <string name="connect_content_description">连接到 Remote</string>
+    <string name="scan_or_import_qr_content_description">扫描或读取二维码</string>
+    <string name="add_remote_link">添加 Remote 链接</string>
+    <string name="read_qr_image">从图片读取</string>
     <string name="valid_link">已识别安全的 ZCode Remote 链接</string>
+    <string name="valid_link_compact">%1$s · %2$s · %3$s</string>
     <string name="invalid_link">这不是有效的 ZCode Remote 链接</string>
     <string name="clipboard_empty">剪贴板里没有文字</string>
-    <string name="scan_recognized">二维码已识别，请确认后再连接</string>
-    <string name="camera_unavailable">这台设备没有可用相机，请改用粘贴链接</string>
+    <string name="paste_recognized">已粘贴有效链接</string>
+    <string name="scan_recognized">二维码已识别</string>
+    <string name="scanner_not_remote">二维码不是有效的 ZCode Remote 链接</string>
+    <string name="camera_unavailable">这台设备没有可用相机，可以改从图片读取</string>
+    <string name="image_qr_recognized">图片二维码已识别</string>
+    <string name="qr_image_decoding">正在读取图片二维码…</string>
+    <string name="qr_image_not_found">图片里没有识别到二维码</string>
+    <string name="qr_image_not_remote">图片里的二维码不是有效的 ZCode Remote 链接</string>
+    <string name="qr_image_unreadable">无法读取这张图片，请换一张重试</string>
+    <string name="qr_image_too_large">图片太大，无法安全读取</string>
+    <string name="qr_image_picker_unavailable">无法打开系统图片选择器</string>
 
     <string name="recent_title">最近连接</string>
     <string name="recent_empty">连接过的设备会出现在这里</string>
@@ -60,9 +75,9 @@
     <string name="scanner_torch_on">打开手电筒</string>
     <string name="scanner_torch_off">关闭手电筒</string>
     <string name="camera_permission_title">无法使用相机</string>
-    <string name="camera_permission_message">没有相机权限也没关系，可以返回后粘贴 Remote 链接。</string>
-    <string name="camera_error">相机启动失败，请返回后改用粘贴链接</string>
+    <string name="camera_permission_message">没有相机权限也没关系，可以返回后从图片读取或粘贴 Remote 链接。</string>
+    <string name="camera_error">相机启动失败，请返回后改从图片读取或粘贴链接</string>
 
     <string name="delete_connection_content_description">删除连接：%1$s</string>
-    <string name="connection_card_content_description">连接到 %1$s</string>
+    <string name="connection_row_content_description">连接到 %1$s，%2$s，%3$s</string>
 </resources>

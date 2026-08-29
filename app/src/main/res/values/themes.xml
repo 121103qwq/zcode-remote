@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.ZCodeRemote" parent="Theme.Material3.DayNight.NoActionBar">
+    <style name="Theme.ZCodeRemote" parent="Theme.Material3.Dark.NoActionBar">
         <item name="colorPrimary">@color/zr_primary</item>
         <item name="colorOnPrimary">@color/zr_on_primary</item>
         <item name="colorSurface">@color/zr_surface</item>
@@ -10,11 +10,34 @@
         <item name="colorOutline">@color/zr_outline</item>
         <item name="colorError">@color/zr_error</item>
         <item name="android:colorAccent">@color/zr_primary</item>
+        <item name="android:colorBackground">@color/zr_background</item>
         <item name="android:windowBackground">@color/zr_background</item>
-        <item name="android:navigationBarColor">@color/zr_background</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
-        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar">false</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:forceDarkAllowed">false</item>
         <item name="android:fontFamily">sans</item>
+    </style>
+
+    <style name="Widget.ZCodeRemote.IconButton" parent="Widget.Material3.Button.TextButton">
+        <item name="android:gravity">center</item>
+        <item name="android:minWidth">0dp</item>
+        <item name="android:minHeight">0dp</item>
+        <item name="android:paddingStart">12dp</item>
+        <item name="android:paddingEnd">12dp</item>
+        <item name="backgroundTint">@android:color/transparent</item>
+        <item name="iconPadding">0dp</item>
+        <item name="iconSize">24dp</item>
+        <item name="iconTint">@color/zr_text_secondary</item>
+        <item name="rippleColor">@color/zr_surface_variant</item>
+    </style>
+
+    <style name="Widget.ZCodeRemote.ConnectIconButton" parent="Widget.ZCodeRemote.IconButton">
+        <item name="backgroundTint">@color/zr_primary</item>
+        <item name="cornerRadius">24dp</item>
+        <item name="iconTint">@color/zr_on_primary</item>
+        <item name="rippleColor">@color/zr_text</item>
     </style>
 
     <style name="Theme.ZCodeRemote.Scanner" parent="Theme.Material3.Dark.NoActionBar">
@@ -22,6 +45,7 @@
         <item name="android:windowBackground">#000000</item>
         <item name="android:navigationBarColor">#000000</item>
         <item name="android:statusBarColor">#000000</item>
+        <item name="android:windowLightNavigationBar">false</item>
         <item name="android:windowLightStatusBar">false</item>
     </style>
 </resources>

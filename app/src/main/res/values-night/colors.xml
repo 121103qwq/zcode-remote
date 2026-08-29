@@ -10,6 +10,7 @@
     <color name="zr_success">#49D99A</color>
     <color name="zr_error">#FFB4AB</color>
     <color name="zr_outline">#3B4555</color>
+    <color name="zr_control_outline">#626C7F</color>
     <color name="zr_scanner_scrim">#B30E1117</color>
     <color name="zr_launcher_background">#5B5CE2</color>
 </resources>

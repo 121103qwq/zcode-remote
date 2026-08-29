@@ -17,6 +17,8 @@ If a link may have leaked, refresh the QR code or press **Stop** in the ZCode de
 - File access, content access, popups, geolocation, microphone, and webpage camera requests are denied.
 - File uploads use an app-owned `ACTION_OPEN_DOCUMENT` request and reject non-`content://`,
   unreadable, wrong-MIME, or excessive picker results.
+- QR image import uses Android Photo Picker (with AndroidX fallback), accepts only the returned
+  `content://` image, bounds decoded pixels, and performs ZXing recognition locally.
 - Stored URLs are encrypted with an Android Keystore AES-GCM key and excluded from backup.
 - If Keystore encryption fails, the URL is kept only in process memory; it is never downgraded to plaintext storage.
 - Activities that can expose a QR code, URL, or remote page use `FLAG_SECURE`; credential input and

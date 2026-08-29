@@ -12,9 +12,9 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:background="@color/zr_background"
-        android:minHeight="?attr/actionBarSize"
+        android:minHeight="64dp"
         android:paddingStart="8dp"
-        android:paddingEnd="8dp"
+        android:paddingEnd="4dp"
         app:title="@string/app_name"
         app:titleTextColor="@color/zr_text" />
 
@@ -29,181 +29,152 @@
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:gravity="center_horizontal"
             android:orientation="vertical"
-            android:paddingStart="20dp"
+            android:paddingStart="16dp"
             android:paddingTop="20dp"
-            android:paddingEnd="20dp"
+            android:paddingEnd="16dp"
             android:paddingBottom="32dp">
 
-            <LinearLayout
+            <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_gravity="center_horizontal"
-                android:orientation="vertical">
+                android:text="@string/connect_title"
+                android:textColor="@color/zr_text"
+                android:textSize="16sp"
+                android:textStyle="bold" />
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:background="@color/zr_surface_variant"
-                    android:paddingStart="12dp"
-                    android:paddingTop="6dp"
-                    android:paddingEnd="12dp"
-                    android:paddingBottom="6dp"
-                    android:text="@string/unofficial_notice"
-                    android:textColor="@color/zr_text_secondary"
-                    android:textSize="12sp" />
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:lineSpacingExtra="1dp"
+                android:text="@string/connect_help"
+                android:textColor="@color/zr_text_secondary"
+                android:textSize="14sp" />
 
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="16dp"
-                    android:text="@string/app_tagline"
-                    android:textColor="@color/zr_text"
-                    android:textSize="28sp"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:lineSpacingExtra="2dp"
-                    android:text="@string/connect_help"
-                    android:textColor="@color/zr_text_secondary"
-                    android:textSize="15sp" />
-
-                <com.google.android.material.card.MaterialCardView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="24dp"
-                    app:cardBackgroundColor="@color/zr_surface"
-                    app:cardCornerRadius="20dp"
-                    app:cardElevation="0dp"
-                    app:strokeColor="@color/zr_outline"
-                    app:strokeWidth="1dp">
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="vertical"
-                        android:padding="18dp">
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="@string/connect_title"
-                            android:textColor="@color/zr_text"
-                            android:textSize="19sp"
-                            android:textStyle="bold" />
-
-                        <com.google.android.material.textfield.TextInputLayout
-                            android:id="@+id/urlInputLayout"
-                            style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="16dp"
-                            android:hint="@string/remote_url_label"
-                            android:saveEnabled="false"
-                            app:boxStrokeColor="@color/zr_primary"
-                            app:helperTextEnabled="true"
-                            app:placeholderText="@string/remote_url_hint">
-
-                            <com.google.android.material.textfield.TextInputEditText
-                                android:id="@+id/urlInput"
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:autofillHints=""
-                                android:gravity="start|top"
-                                android:importantForAutofill="noExcludeDescendants"
-                                android:inputType="textUri|textNoSuggestions"
-                                android:maxLength="8192"
-                                android:maxLines="3"
-                                android:minLines="2"
-                                android:saveEnabled="false"
-                                android:textDirection="ltr" />
-                        </com.google.android.material.textfield.TextInputLayout>
-
-                        <TextView
-                            android:id="@+id/linkPreview"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="8dp"
-                            android:accessibilityLiveRegion="polite"
-                            android:textColor="@color/zr_success"
-                            android:textSize="13sp"
-                            android:visibility="gone" />
-
-                        <LinearLayout
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="12dp"
-                            android:orientation="vertical">
-
-                            <com.google.android.material.button.MaterialButton
-                                android:id="@+id/pasteButton"
-                                style="@style/Widget.Material3.Button.OutlinedButton"
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:minHeight="52dp"
-                                android:text="@string/paste" />
-
-                            <com.google.android.material.button.MaterialButton
-                                android:id="@+id/scanButton"
-                                style="@style/Widget.Material3.Button.OutlinedButton"
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:layout_marginTop="8dp"
-                                android:minHeight="52dp"
-                                android:text="@string/scan_qr" />
-                        </LinearLayout>
-
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/connectButton"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="12dp"
-                            android:minHeight="54dp"
-                            android:text="@string/connect"
-                            android:textStyle="bold" />
-                    </LinearLayout>
-                </com.google.android.material.card.MaterialCardView>
-
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="28dp"
-                    android:text="@string/recent_title"
-                    android:textColor="@color/zr_text"
-                    android:textSize="19sp"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:id="@+id/recentEmpty"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp"
-                    android:text="@string/recent_empty"
-                    android:textColor="@color/zr_text_secondary"
-                    android:textSize="14sp" />
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/connectionBar"
+                android:layout_width="match_parent"
+                android:layout_height="64dp"
+                android:layout_marginTop="16dp"
+                app:cardBackgroundColor="@color/zr_surface"
+                app:cardCornerRadius="32dp"
+                app:cardElevation="0dp"
+                app:strokeColor="@color/zr_control_outline"
+                app:strokeWidth="1dp">
 
                 <LinearLayout
-                    android:id="@+id/recentContainer"
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:orientation="vertical" />
+                    android:layout_height="match_parent"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingStart="4dp"
+                    android:paddingEnd="4dp">
 
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="16dp"
-                    android:background="@color/zr_surface_variant"
-                    android:lineSpacingExtra="2dp"
-                    android:padding="14dp"
-                    android:text="@string/recent_warning"
-                    android:textColor="@color/zr_text_secondary"
-                    android:textSize="13sp" />
-            </LinearLayout>
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/pasteButton"
+                        style="@style/Widget.ZCodeRemote.IconButton"
+                        android:layout_width="48dp"
+                        android:layout_height="48dp"
+                        android:contentDescription="@string/paste_link_content_description"
+                        android:text=""
+                        android:tooltipText="@string/paste_link_content_description"
+                        app:icon="@drawable/ic_content_paste_24"
+                        app:iconGravity="textStart" />
+
+                    <androidx.appcompat.widget.AppCompatEditText
+                        android:id="@+id/urlInput"
+                        android:layout_width="0dp"
+                        android:layout_height="match_parent"
+                        android:layout_weight="1"
+                        android:background="@null"
+                        android:gravity="center_vertical"
+                        android:hint="@string/remote_url_hint"
+                        android:imeOptions="actionGo|flagNoPersonalizedLearning"
+                        android:importantForAutofill="no"
+                        android:inputType="textUri|textNoSuggestions"
+                        android:maxLength="8192"
+                        android:maxLines="1"
+                        android:paddingStart="4dp"
+                        android:paddingEnd="4dp"
+                        android:saveEnabled="false"
+                        android:singleLine="true"
+                        android:textColor="@color/zr_text"
+                        android:textColorHint="@color/zr_text_secondary"
+                        android:textDirection="ltr"
+                        android:textSize="15sp" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/connectButton"
+                        style="@style/Widget.ZCodeRemote.ConnectIconButton"
+                        android:layout_width="48dp"
+                        android:layout_height="48dp"
+                        android:contentDescription="@string/connect_content_description"
+                        android:text=""
+                        android:tooltipText="@string/connect_content_description"
+                        app:icon="@drawable/ic_arrow_forward_24"
+                        app:iconGravity="textStart" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/scanButton"
+                        style="@style/Widget.ZCodeRemote.IconButton"
+                        android:layout_width="48dp"
+                        android:layout_height="48dp"
+                        android:contentDescription="@string/scan_or_import_qr_content_description"
+                        android:text=""
+                        android:tooltipText="@string/scan_or_import_qr_content_description"
+                        app:icon="@drawable/ic_photo_camera_24"
+                        app:iconGravity="textStart" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <TextView
+                android:id="@+id/linkPreview"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:layout_marginTop="8dp"
+                android:layout_marginEnd="12dp"
+                android:ellipsize="end"
+                android:lineSpacingExtra="1dp"
+                android:maxLines="1"
+                android:textColor="@color/zr_success"
+                android:textSize="12sp"
+                android:visibility="gone" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="32dp"
+                android:text="@string/recent_title"
+                android:textColor="@color/zr_text"
+                android:textSize="15sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/recentEmpty"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:text="@string/recent_empty"
+                android:textColor="@color/zr_text_secondary"
+                android:textSize="14sp" />
+
+            <LinearLayout
+                android:id="@+id/recentContainer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:orientation="vertical" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="24dp"
+                android:lineSpacingExtra="2dp"
+                android:text="@string/recent_warning"
+                android:textColor="@color/zr_text_secondary"
+                android:textSize="12sp" />
         </LinearLayout>
     </ScrollView>
 </LinearLayout>

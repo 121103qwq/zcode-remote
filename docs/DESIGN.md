@@ -10,8 +10,9 @@ The official web page already owns protocol compatibility, permission prompts, t
 
 | Component | Responsibility |
 |---|---|
-| `MainActivity` | Explicit paste/share import, scan launch, validation preview, recent connections |
+| `MainActivity` | Compact dark connection bar, explicit paste/share import, camera/image QR routing, validation preview, flat recent rows |
 | `ScannerActivity` | CameraX preview and local ZXing QR decoding |
+| `QrImageDecoder` | Bounded local decoding for one or more QR codes selected through Android Photo Picker |
 | `RemoteActivity` | One immersive full-screen hardened WebView with no native overlay, error fallback, file chooser, system back gesture |
 | `RemoteUrlPolicy` | One shared allowlist for every incoming URL and top-level navigation |
 | `SessionStore` | Six encrypted recent credentials; no conversation cache |
@@ -30,14 +31,15 @@ The official web page already owns protocol compatibility, permission prompts, t
 | A web page cannot invoke native app methods | There is no JS bridge or injected message listener |
 | TLS failure cannot be bypassed | `onReceivedSslError` always calls `cancel()` and displays an error |
 | A renderer crash does not crash the whole app | `onRenderProcessGone` destroys the dead WebView and exposes a reload path |
-| Camera denial does not block the product | Scanner closes with an explanation; paste remains available |
+| Camera denial does not block the product | The same QR action offers Android Photo Picker; paste also remains available |
+| A selected image cannot become an arbitrary file read | Only user-selected `content://` image URIs are accepted, decoded with bounded sampling, and never resolved to filesystem paths |
 
 The WebView deliberately reconnects from the encrypted entry URL after an Activity/process
 recreation instead of serializing browser history, because WebView saved state can contain the
 credential URL. Volatile in-memory sessions survive configuration recreation while the process is
 alive; after process death the app visibly asks for a new scan.
 
-## Deliberate omissions in 0.1.0
+## Deliberate omissions in 0.2.0
 
 - No private protocol reimplementation
 - No DOM mutation or custom floating composer
