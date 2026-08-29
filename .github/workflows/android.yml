@@ -63,7 +63,7 @@ jobs:
           APK_PATH="app/build/outputs/apk/stable/app-stable-unsigned.apk"
           BADGING="$($ANDROID_HOME/build-tools/35.0.0/aapt dump badging "$APK_PATH")"
           printf '%s\n' "$BADGING" \
-            | grep -F "package: name='io.github.xgy.zcoderemote' versionCode='5' versionName='0.2.1'"
+            | grep -F "package: name='io.github.xgy.zcoderemote' versionCode='6' versionName='0.3.0'"
           if printf '%s\n' "$BADGING" | grep -q '^application-debuggable'; then
             echo "Stable APK must not be debuggable."
             exit 1
@@ -75,10 +75,10 @@ jobs:
           set -euo pipefail
           test -f app/build/outputs/apk/stable/app-stable-unsigned.apk
           mkdir -p ci-output unsigned-output
-          cp app/build/outputs/apk/debug/app-debug.apk ci-output/ZLink-Remote-v0.2.1-CI-debug.apk
-          cp app/build/outputs/apk/stable/app-stable-unsigned.apk unsigned-output/ZLink-Remote-v0.2.1-unsigned.apk
-          (cd ci-output && sha256sum ZLink-Remote-v0.2.1-CI-debug.apk > SHA256SUMS.txt)
-          (cd unsigned-output && sha256sum ZLink-Remote-v0.2.1-unsigned.apk > SHA256SUMS.txt)
+          cp app/build/outputs/apk/debug/app-debug.apk ci-output/ZLink-Remote-v0.3.0-CI-debug.apk
+          cp app/build/outputs/apk/stable/app-stable-unsigned.apk unsigned-output/ZLink-Remote-v0.3.0-unsigned.apk
+          (cd ci-output && sha256sum ZLink-Remote-v0.3.0-CI-debug.apk > SHA256SUMS.txt)
+          (cd unsigned-output && sha256sum ZLink-Remote-v0.3.0-unsigned.apk > SHA256SUMS.txt)
 
       - name: Upload CI debug APK
         uses: actions/upload-artifact@v4
@@ -139,7 +139,7 @@ jobs:
           printf '%s' "$ZLINK_SIGNING_KEYSTORE_B64" | base64 --decode > "$KEYSTORE_PATH"
 
           "$ANDROID_HOME/build-tools/35.0.0/zipalign" -f -p 4 \
-            unsigned-input/ZLink-Remote-v0.2.1-unsigned.apk \
+            unsigned-input/ZLink-Remote-v0.3.0-unsigned.apk \
             "$ALIGNED_APK"
 
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" sign \
@@ -148,7 +148,7 @@ jobs:
             --ks-key-alias zlink-release \
             --ks-pass env:ZLINK_SIGNING_PASSWORD \
             --key-pass env:ZLINK_SIGNING_PASSWORD \
-            --out signed-output/ZLink-Remote-v0.2.1-stable.apk \
+            --out signed-output/ZLink-Remote-v0.3.0-stable.apk \
             "$ALIGNED_APK"
 
       - name: Verify package and pinned signing certificate
@@ -156,7 +156,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          APK_PATH="signed-output/ZLink-Remote-v0.2.1-stable.apk"
+          APK_PATH="signed-output/ZLink-Remote-v0.3.0-stable.apk"
           VERIFY_OUTPUT="${RUNNER_TEMP:?}/apksigner-verification.txt"
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" \
             verify --verbose --print-certs "$APK_PATH" | tee "$VERIFY_OUTPUT"
@@ -173,8 +173,8 @@ jobs:
           fi
 
           "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK_PATH" \
-            | grep -F "package: name='io.github.xgy.zcoderemote' versionCode='5' versionName='0.2.1'"
-          (cd signed-output && sha256sum ZLink-Remote-v0.2.1-stable.apk > SHA256SUMS.txt)
+            | grep -F "package: name='io.github.xgy.zcoderemote' versionCode='6' versionName='0.3.0'"
+          (cd signed-output && sha256sum ZLink-Remote-v0.3.0-stable.apk > SHA256SUMS.txt)
 
       - name: Remove temporary keystore
         if: always()

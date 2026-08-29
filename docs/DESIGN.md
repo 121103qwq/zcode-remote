@@ -13,7 +13,7 @@ The official web page already owns protocol compatibility, permission prompts, t
 | `MainActivity` | Compact dark connection bar, settings, explicit paste/share import, camera/image QR routing, validation preview, flat recent rows |
 | `ScannerActivity` | CameraX preview and local ZXing QR decoding |
 | `QrImageDecoder` | Bounded local decoding for one or more QR codes selected through Android Photo Picker |
-| `RemoteActivity` | One immersive full-screen hardened WebView with no native overlay, error fallback, file chooser, system back gesture |
+| `RemoteActivity` | One immersive full-screen hardened WebView with no native overlay, server-directed asset cache, bounded reconnect, completion-state polling, file chooser, system back gesture |
 | `RemoteUrlPolicy` | One shared allowlist for every incoming URL and top-level navigation |
 | `SessionStore` | Six encrypted recent credentials; no conversation cache |
 | `StartupSessionPolicy` | Pure startup routing: designated session first, otherwise most recent; launcher-only gating |
@@ -29,8 +29,10 @@ The official web page already owns protocol compatibility, permission prompts, t
 | Saved preferences do not contain a plaintext bearer URL | `SessionStore` writes only AES-GCM ciphertext; device test should inspect app preferences |
 | Startup routing cannot override an external share or trap the back gesture | Unit tests require a fresh `ACTION_MAIN` launcher start; restored, shared, and deep-link intents never auto-open |
 | Android saved state does not serialize the bearer URL | Credential input and WebView state saving are disabled; screenshots and task previews are intentionally user-controlled |
-| The bearer URL is not retained as an HTTP cache key after use | The WebView clears disk cache across load, finish, background and destruction paths; device tests search `app_webview` using fake credentials |
-| A web page cannot invoke native app methods | There is no JS bridge or injected message listener |
+| Cached content follows the official server's policy | `LOAD_DEFAULT` reuses cacheable static assets; explicit **Clear local data** removes WebView cache, storage and cookies |
+| A web page cannot invoke native app methods | There is no JS bridge or injected message listener; the native side only evaluates a fixed, read-only state expression after re-checking the trusted top-level origin |
+| A finished historical task cannot create a false notification | The pure transition tracker requires a locally observed `RUNNING → IDLE` transition before notifying |
+| Unsafe failures are never retried | The retry policy accepts network and renderer errors only; expired credentials, TLS failures and unsafe navigation fail closed |
 | TLS failure cannot be bypassed | `onReceivedSslError` always calls `cancel()` and displays an error |
 | A renderer crash does not crash the whole app | `onRenderProcessGone` destroys the dead WebView and exposes a reload path |
 | Camera denial does not block the product | The same QR action offers Android Photo Picker; paste also remains available |
@@ -41,11 +43,11 @@ recreation instead of serializing browser history, because WebView saved state c
 credential URL. Volatile in-memory sessions survive configuration recreation while the process is
 alive; after process death the app visibly asks for a new scan.
 
-## Deliberate omissions in 0.2.1
+## Deliberate omissions in 0.3.0
 
 - No private protocol reimplementation
 - No DOM mutation or custom floating composer
-- No background service, fake page visibility, reply scraping, or notification bridge
+- No foreground/background service, fake page visibility, or reply scraping. Completion polling continues while the Activity process remains alive, but Android may terminate a background process.
 - No multiple simultaneous WebViews
 - No credential export or “copy saved URL” button
 - No fixed promise about link lifetime

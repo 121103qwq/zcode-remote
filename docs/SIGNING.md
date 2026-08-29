@@ -100,7 +100,7 @@ temporary JKS.
 Use the same Android SDK build-tools version or newer:
 
 ```bash
-apksigner verify --verbose --print-certs ZLink-Remote-v0.2.1-stable.apk
+apksigner verify --verbose --print-certs ZLink-Remote-v0.3.0-stable.apk
 sha256sum -c SHA256SUMS.txt
 ```
 

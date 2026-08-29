@@ -68,6 +68,7 @@
     <string name="leave">返回</string>
     <string name="web_error_title">无法打开工作区</string>
     <string name="web_error_generic">请检查网络和电脑端 Remote 是否仍然开启。</string>
+    <string name="web_error_reconnecting">连接中断，正在自动重连（第 %1$d 次）…</string>
     <string name="web_error_expired">这个 Remote 链接可能已经失效，请回到电脑端重新生成。</string>
     <string name="web_error_ssl">无法验证服务器身份，连接已被阻止。</string>
     <string name="web_error_unsafe">网页尝试离开 ZCode 官方站点，已停止加载。</string>
@@ -78,6 +79,10 @@
     <string name="unsafe_file_rejected">已拒绝文件选择器返回的不安全内容</string>
     <string name="secure_store_unavailable">安全存储不可用；这次连接不会保存，退出应用后需重新扫码。</string>
     <string name="session_unavailable">这次临时连接已失效，请重新扫码或粘贴链接</string>
+    <string name="notification_channel_name">任务完成</string>
+    <string name="notification_channel_description">ZCode Remote 任务从运行中变为完成时提醒</string>
+    <string name="task_completed_title">ZCode 任务已完成</string>
+    <string name="task_completed_message">%1$s 已完成，可以返回查看结果。</string>
 
     <string name="scanner_title">扫描 ZCode Remote 二维码</string>
     <string name="scanner_hint">把电脑屏幕上的二维码放进框内</string>
