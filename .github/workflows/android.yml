@@ -56,21 +56,29 @@ jobs:
           verify --verbose --print-certs
           app/build/outputs/apk/debug/app-debug.apk
 
+      - name: Validate stable APK metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK_PATH="app/build/outputs/apk/stable/app-stable-unsigned.apk"
+          BADGING="$($ANDROID_HOME/build-tools/35.0.0/aapt dump badging "$APK_PATH")"
+          printf '%s\n' "$BADGING" \
+            | grep -F "package: name='io.github.xgy.zcoderemote' versionCode='5' versionName='0.2.1'"
+          if printf '%s\n' "$BADGING" | grep -q '^application-debuggable'; then
+            echo "Stable APK must not be debuggable."
+            exit 1
+          fi
+
       - name: Stage CI artifacts
         shell: bash
         run: |
           set -euo pipefail
           test -f app/build/outputs/apk/stable/app-stable-unsigned.apk
-          test -f "$ANDROID_HOME/build-tools/35.0.0/lib/apksigner.jar"
           mkdir -p ci-output unsigned-output
           cp app/build/outputs/apk/debug/app-debug.apk ci-output/ZLink-Remote-v0.2.1-CI-debug.apk
           cp app/build/outputs/apk/stable/app-stable-unsigned.apk unsigned-output/ZLink-Remote-v0.2.1-unsigned.apk
-          cp "$ANDROID_HOME/build-tools/35.0.0/lib/apksigner.jar" unsigned-output/apksigner.jar
           (cd ci-output && sha256sum ZLink-Remote-v0.2.1-CI-debug.apk > SHA256SUMS.txt)
-          (
-            cd unsigned-output
-            sha256sum ZLink-Remote-v0.2.1-unsigned.apk apksigner.jar > SHA256SUMS.txt
-          )
+          (cd unsigned-output && sha256sum ZLink-Remote-v0.2.1-unsigned.apk > SHA256SUMS.txt)
 
       - name: Upload CI debug APK
         uses: actions/upload-artifact@v4
