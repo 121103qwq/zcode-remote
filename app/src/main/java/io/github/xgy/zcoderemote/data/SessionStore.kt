@@ -23,6 +23,27 @@ class SessionStore(context: Context) {
     fun find(id: String): RemoteSession? = list().firstOrNull { it.id == id }
 
     @Synchronized
+    fun designatedSessionId(): String? = preferences.getString(KEY_DESIGNATED_SESSION_ID, null)
+
+    @Synchronized
+    fun designate(id: String?) {
+        require(id == null || list().any { it.id == id }) { "unknown session" }
+        val editor = preferences.edit()
+        if (id == null) {
+            editor.remove(KEY_DESIGNATED_SESSION_ID)
+        } else {
+            editor.putString(KEY_DESIGNATED_SESSION_ID, id)
+        }
+        check(editor.commit()) { "failed to persist startup preference" }
+    }
+
+    @Synchronized
+    fun startupSession(): RemoteSession? = StartupSessionPolicy.select(
+        designatedSessionId = designatedSessionId(),
+        sessions = list(),
+    )
+
+    @Synchronized
     fun remember(parsed: RemoteUrlPolicy.Parsed): RemoteSession {
         val now = System.currentTimeMillis()
         val existing = list().firstOrNull { it.url == parsed.original }
@@ -34,11 +55,13 @@ class SessionStore(context: Context) {
             lastUsedAt = now,
         )
 
-        val updated = list()
-            .filterNot { it.id == session.id }
-            .plus(session)
-            .sortedByDescending(RemoteSession::lastUsedAt)
-            .take(MAX_SESSIONS)
+        val updated = StartupSessionPolicy.retainRecent(
+            sessions = list()
+                .filterNot { it.id == session.id }
+                .plus(session),
+            limit = MAX_SESSIONS,
+            designatedSessionId = designatedSessionId(),
+        )
         persist(updated)
         return session
     }
@@ -46,11 +69,16 @@ class SessionStore(context: Context) {
     @Synchronized
     fun remove(id: String) {
         persist(list().filterNot { it.id == id })
+        if (designatedSessionId() == id) {
+            check(preferences.edit().remove(KEY_DESIGNATED_SESSION_ID).commit()) {
+                "failed to clear startup preference"
+            }
+        }
     }
 
     @Synchronized
     fun clear() {
-        preferences.edit().clear().commit()
+        check(preferences.edit().clear().commit()) { "failed to clear stored sessions" }
         cipher.deleteKey()
     }
 
@@ -97,6 +125,7 @@ class SessionStore(context: Context) {
     private companion object {
         const val PREFERENCES_NAME = "secure_remote_sessions"
         const val KEY_SESSIONS = "sessions_v1"
+        const val KEY_DESIGNATED_SESSION_ID = "designated_session_id_v1"
         const val MAX_SESSIONS = 6
     }
 }

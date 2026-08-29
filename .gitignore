@@ -10,7 +10,14 @@ captures/
 # Signing credentials
 *.jks
 *.keystore
+*.p12
+*.pfx
+*.pem
+*.der
+*.jks.b64
 key.properties
+signing.properties
+.env.signing
 
 # IDE / OS
 .idea/

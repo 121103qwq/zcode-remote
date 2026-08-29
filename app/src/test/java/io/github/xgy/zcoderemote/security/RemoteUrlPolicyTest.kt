@@ -20,6 +20,17 @@ class RemoteUrlPolicyTest {
     }
 
     @Test
+    fun `accepts desktop metadata without rebuilding the signed query`() {
+        val input = "https://zcode.z.ai/remote/v4?sid=test-device&hash=test%2Bhash%3D&t=1800000000000&mid=test-mid&name=DESKTOP-TEST&app_version=9.9.9"
+
+        val parsed = RemoteUrlPolicy.parse(input)
+
+        assertEquals(input, parsed.original)
+        assertEquals("DESKTOP-TEST", parsed.displayName)
+        assertEquals("https://zcode.z.ai/remote/v4", parsed.displayLocation)
+    }
+
+    @Test
     fun `accepts legacy official v3 URL`() {
         assertNotNull(
             RemoteUrlPolicy.parseOrNull(

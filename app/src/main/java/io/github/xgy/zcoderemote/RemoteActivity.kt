@@ -1,11 +1,17 @@
 package io.github.xgy.zcoderemote
 
+import android.Manifest
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.ConnectivityManager
+import android.net.Network
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.view.View
-import android.view.WindowManager
 import android.webkit.ConsoleMessage
 import android.webkit.CookieManager
 import android.webkit.GeolocationPermissions
@@ -18,6 +24,7 @@ import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
@@ -28,6 +35,8 @@ import io.github.xgy.zcoderemote.data.SessionStore
 import io.github.xgy.zcoderemote.data.TransientSessionVault
 import io.github.xgy.zcoderemote.databinding.ActivityRemoteBinding
 import io.github.xgy.zcoderemote.security.RemoteUrlPolicy
+import io.github.xgy.zcoderemote.web.AutoReconnectPolicy
+import io.github.xgy.zcoderemote.web.CompletionTransition
 import io.github.xgy.zcoderemote.web.TrustedRemoteWebViewClient
 
 class RemoteActivity : AppCompatActivity(), TrustedRemoteWebViewClient.Callbacks {
@@ -36,6 +45,29 @@ class RemoteActivity : AppCompatActivity(), TrustedRemoteWebViewClient.Callbacks
     private var webView: WebView? = null
     private var fileChooserCallback: ValueCallback<Array<Uri>>? = null
     private var acceptedFileTypes: List<String> = listOf(ANY_MIME_TYPE)
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private val reconnectPolicy = AutoReconnectPolicy()
+    private val completionTransition = CompletionTransition()
+    private lateinit var completionNotifier: RemoteCompletionNotifier
+    private var retryRunnable: Runnable? = null
+    private var completionPollRunnable: Runnable? = null
+    private var retryAttempt = 0
+    private var lastErrorKind: TrustedRemoteWebViewClient.ErrorKind? = null
+    private var networkCallbackRegistered = false
+
+    private val networkCallback = object : ConnectivityManager.NetworkCallback() {
+        override fun onAvailable(network: Network) {
+            mainHandler.post {
+                if (lastErrorKind == TrustedRemoteWebViewClient.ErrorKind.NETWORK) {
+                    scheduleReconnect(TrustedRemoteWebViewClient.ErrorKind.NETWORK, immediate = true)
+                }
+            }
+        }
+    }
+
+    private val notificationPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { }
 
     private val filePickerLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult(),
@@ -53,7 +85,6 @@ class RemoteActivity : AppCompatActivity(), TrustedRemoteWebViewClient.Callbacks
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
         enableEdgeToEdge()
         enterImmersiveMode()
 
@@ -79,11 +110,13 @@ class RemoteActivity : AppCompatActivity(), TrustedRemoteWebViewClient.Callbacks
 
         binding = ActivityRemoteBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        completionNotifier = RemoteCompletionNotifier(this).also { it.createChannel() }
         applyInsets()
         configureErrorActions()
 
         webView = binding.webView
         configureWebView(binding.webView)
+        registerNetworkCallback()
         loadSession()
     }
 
@@ -98,13 +131,10 @@ class RemoteActivity : AppCompatActivity(), TrustedRemoteWebViewClient.Callbacks
         if (hasFocus) enterImmersiveMode()
     }
 
-    override fun onPause() {
-        webView?.clearCache(true)
-        webView?.onPause()
-        super.onPause()
-    }
-
     override fun onDestroy() {
+        cancelReconnect()
+        stopCompletionPolling()
+        unregisterNetworkCallback()
         cancelPendingFileChooser()
         destroyWebView(webView)
         webView = null
@@ -167,7 +197,7 @@ class RemoteActivity : AppCompatActivity(), TrustedRemoteWebViewClient.Callbacks
             setSupportMultipleWindows(false)
             mediaPlaybackRequiresUserGesture = true
             safeBrowsingEnabled = true
-            cacheMode = WebSettings.LOAD_NO_CACHE
+            cacheMode = WebSettings.LOAD_DEFAULT
         }
         CookieManager.getInstance().apply {
             setAcceptCookie(true)
@@ -175,7 +205,7 @@ class RemoteActivity : AppCompatActivity(), TrustedRemoteWebViewClient.Callbacks
         }
         target.overScrollMode = View.OVER_SCROLL_NEVER
         target.isSaveEnabled = false
-        target.clearCache(true)
+        target.setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_IMPORTANT, true)
         target.webViewClient = TrustedRemoteWebViewClient(this)
         target.webChromeClient = object : WebChromeClient() {
             override fun onShowFileChooser(
@@ -225,9 +255,15 @@ class RemoteActivity : AppCompatActivity(), TrustedRemoteWebViewClient.Callbacks
         }
     }
 
-    private fun loadSession() {
+    private fun loadSession(resetRetryState: Boolean = true) {
+        cancelReconnect()
+        if (resetRetryState) {
+            reconnectPolicy.reset()
+            retryAttempt = 0
+            lastErrorKind = null
+            completionTransition.reset()
+        }
         val target = webView ?: createReplacementWebView()
-        target.clearCache(true)
         binding.errorPanel.visibility = View.GONE
         target.visibility = View.VISIBLE
         target.loadUrl(session.url)
@@ -249,7 +285,6 @@ class RemoteActivity : AppCompatActivity(), TrustedRemoteWebViewClient.Callbacks
         if (target == null) return
         (target.parent as? android.view.ViewGroup)?.removeView(target)
         target.stopLoading()
-        target.clearCache(true)
         target.clearHistory()
         target.clearFormData()
         target.webChromeClient = null
@@ -259,12 +294,18 @@ class RemoteActivity : AppCompatActivity(), TrustedRemoteWebViewClient.Callbacks
     }
 
     override fun onPageStarted() {
+        stopCompletionPolling()
         binding.errorPanel.visibility = View.GONE
         webView?.visibility = View.VISIBLE
     }
 
     override fun onPageFinished() {
-        webView?.clearCache(true)
+        cancelReconnect()
+        reconnectPolicy.reset()
+        retryAttempt = 0
+        lastErrorKind = null
+        maybeRequestNotificationPermission()
+        startCompletionPolling()
     }
 
     override fun onMainFrameError(kind: TrustedRemoteWebViewClient.ErrorKind) {
@@ -278,14 +319,21 @@ class RemoteActivity : AppCompatActivity(), TrustedRemoteWebViewClient.Callbacks
             TrustedRemoteWebViewClient.ErrorKind.RENDERER -> R.string.web_error_renderer
             TrustedRemoteWebViewClient.ErrorKind.NETWORK -> R.string.web_error_generic
         }
-        showError(message)
+        if (kind == TrustedRemoteWebViewClient.ErrorKind.NETWORK) {
+            scheduleReconnect(kind)
+        } else {
+            cancelReconnect()
+            stopCompletionPolling()
+            lastErrorKind = kind
+            showError(message)
+        }
     }
 
     override fun onRendererGone(webView: WebView) {
         cancelPendingFileChooser()
         destroyWebView(webView)
         this.webView = null
-        showError(R.string.web_error_renderer)
+        scheduleReconnect(TrustedRemoteWebViewClient.ErrorKind.RENDERER)
     }
 
     override fun openExternal(uri: Uri) {
@@ -307,6 +355,107 @@ class RemoteActivity : AppCompatActivity(), TrustedRemoteWebViewClient.Callbacks
         webView?.visibility = View.GONE
         binding.errorMessage.setText(messageResource)
         binding.errorPanel.visibility = View.VISIBLE
+    }
+
+    private fun scheduleReconnect(
+        kind: TrustedRemoteWebViewClient.ErrorKind,
+        immediate: Boolean = false,
+    ) {
+        cancelReconnect()
+        stopCompletionPolling()
+        lastErrorKind = kind
+        val delay = if (immediate) 0L else reconnectPolicy.nextDelay(kind)
+        if (delay == null) {
+            showError(
+                if (kind == TrustedRemoteWebViewClient.ErrorKind.RENDERER) {
+                    R.string.web_error_renderer
+                } else {
+                    R.string.web_error_generic
+                },
+            )
+            return
+        }
+
+        retryAttempt += 1
+        webView?.visibility = View.GONE
+        binding.errorMessage.text = getString(R.string.web_error_reconnecting, retryAttempt)
+        binding.errorPanel.visibility = View.VISIBLE
+        val action = Runnable {
+            retryRunnable = null
+            if (!isFinishing && !isDestroyed) loadSession(resetRetryState = false)
+        }
+        retryRunnable = action
+        mainHandler.postDelayed(action, delay)
+    }
+
+    private fun cancelReconnect() {
+        retryRunnable?.let(mainHandler::removeCallbacks)
+        retryRunnable = null
+    }
+
+    private fun startCompletionPolling() {
+        stopCompletionPolling()
+        val action = object : Runnable {
+            override fun run() {
+                completionPollRunnable = this
+                pollCompletionState()
+            }
+        }
+        completionPollRunnable = action
+        mainHandler.postDelayed(action, COMPLETION_FIRST_POLL_DELAY_MILLIS)
+    }
+
+    private fun pollCompletionState() {
+        val target = webView
+        if (target == null || !isTrustedCurrentPage() || isFinishing || isDestroyed) return
+        target.evaluateJavascript(COMPLETION_STATE_SCRIPT) { rawValue ->
+            val state = when (rawValue?.trim()?.trim('"')) {
+                "running" -> CompletionTransition.PageState.RUNNING
+                "idle" -> CompletionTransition.PageState.IDLE
+                else -> CompletionTransition.PageState.UNKNOWN
+            }
+            if (completionTransition.observe(state)) {
+                completionNotifier.notifyCompleted(session)
+            }
+            completionPollRunnable?.let {
+                mainHandler.postDelayed(it, COMPLETION_POLL_INTERVAL_MILLIS)
+            }
+        }
+    }
+
+    private fun stopCompletionPolling() {
+        completionPollRunnable?.let(mainHandler::removeCallbacks)
+        completionPollRunnable = null
+    }
+
+    private fun maybeRequestNotificationPermission() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
+        if (
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) ==
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            return
+        }
+        val preferences = getSharedPreferences(NOTIFICATION_PREFERENCES, Context.MODE_PRIVATE)
+        if (preferences.getBoolean(KEY_NOTIFICATION_PERMISSION_REQUESTED, false)) return
+        preferences.edit().putBoolean(KEY_NOTIFICATION_PERMISSION_REQUESTED, true).apply()
+        notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+    }
+
+    private fun registerNetworkCallback() {
+        if (networkCallbackRegistered) return
+        val manager = getSystemService(ConnectivityManager::class.java) ?: return
+        networkCallbackRegistered = runCatching {
+            manager.registerDefaultNetworkCallback(networkCallback)
+            true
+        }.getOrDefault(false)
+    }
+
+    private fun unregisterNetworkCallback() {
+        if (!networkCallbackRegistered) return
+        val manager = getSystemService(ConnectivityManager::class.java) ?: return
+        runCatching { manager.unregisterNetworkCallback(networkCallback) }
+        networkCallbackRegistered = false
     }
 
     private fun isTrustedCurrentPage(): Boolean =
@@ -397,6 +546,18 @@ class RemoteActivity : AppCompatActivity(), TrustedRemoteWebViewClient.Callbacks
         private const val ANY_MIME_TYPE = "*/*"
         private const val MAX_ACCEPTED_MIME_TYPES = 16
         private const val MAX_SELECTED_FILES = 10
+        private const val COMPLETION_FIRST_POLL_DELAY_MILLIS = 1_000L
+        private const val COMPLETION_POLL_INTERVAL_MILLIS = 2_500L
+        private const val NOTIFICATION_PREFERENCES = "notification_preferences"
+        private const val KEY_NOTIFICATION_PERMISSION_REQUESTED = "permission_requested"
+        private const val COMPLETION_STATE_SCRIPT = """
+            (() => {
+              if (location.origin !== 'https://zcode.z.ai' || !location.pathname.startsWith('/remote/v4')) return 'unknown';
+              const running = document.querySelector('[data-testid="v4-composer-stop"], [data-testid="v4-composer-cancel"]');
+              if (running) return 'running';
+              return document.querySelector('[data-testid="v4-composer-send"]') ? 'idle' : 'unknown';
+            })()
+        """
 
         fun createIntent(context: Context, sessionId: String): Intent =
             Intent(context, RemoteActivity::class.java).putExtra(EXTRA_SESSION_ID, sessionId)

@@ -11,8 +11,8 @@ android {
         applicationId = "io.github.xgy.zcoderemote"
         minSdk = 26
         targetSdk = 36
-        versionCode = 3
-        versionName = "0.1.2"
+        versionCode = 6
+        versionName = "0.3.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -25,6 +25,17 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
+        }
+
+        // Production-like, unsigned output for the isolated CI signing job.
+        // It deliberately avoids the runner-generated debug keystore and keeps
+        // shrinking disabled until the release rules have broader device coverage.
+        create("stable") {
+            initWith(getByName("release"))
+            isMinifyEnabled = false
+            isShrinkResources = false
+            signingConfig = null
+            matchingFallbacks += listOf("release")
         }
     }
 

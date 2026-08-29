@@ -20,6 +20,7 @@ class TrustedRemoteWebViewClient(
     private val callbacks: Callbacks,
 ) : WebViewClient() {
     private val unsafeNavigationReported = AtomicBoolean(false)
+    private var mainFrameFailed = false
 
     override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
         val target = request.url.toString()
@@ -66,6 +67,7 @@ class TrustedRemoteWebViewClient(
             return
         }
         unsafeNavigationReported.set(false)
+        mainFrameFailed = false
         callbacks.onPageStarted()
     }
 
@@ -86,6 +88,7 @@ class TrustedRemoteWebViewClient(
 
     override fun onPageFinished(view: WebView, url: String?) {
         if (!RemoteUrlPolicy.isTrustedTopLevelNavigation(url)) return
+        if (mainFrameFailed) return
         callbacks.onPageFinished()
     }
 
@@ -98,6 +101,7 @@ class TrustedRemoteWebViewClient(
             request.isForMainFrame &&
             RemoteUrlPolicy.isTrustedTopLevelNavigation(request.url.toString())
         ) {
+            mainFrameFailed = true
             callbacks.onMainFrameError(ErrorKind.NETWORK)
         }
     }
@@ -114,11 +118,13 @@ class TrustedRemoteWebViewClient(
             in 400..599 -> ErrorKind.NETWORK
             else -> return
         }
+        mainFrameFailed = true
         callbacks.onMainFrameError(kind)
     }
 
     override fun onReceivedSslError(view: WebView, handler: SslErrorHandler, error: SslError) {
         handler.cancel()
+        mainFrameFailed = true
         callbacks.onMainFrameError(ErrorKind.SSL)
     }
 
@@ -131,6 +137,7 @@ class TrustedRemoteWebViewClient(
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
             callback.backToSafety(true)
         }
+        mainFrameFailed = true
         callbacks.onMainFrameError(ErrorKind.UNSAFE)
     }
 
